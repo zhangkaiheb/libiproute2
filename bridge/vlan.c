@@ -18,7 +18,7 @@
 static unsigned int filter_index, filter_vlan;
 static int show_vlan_tunnel_info = 0;
 
-static void usage(void)
+static int usage(void)
 {
 	fprintf(stderr,
 		"Usage: bridge vlan { add | del } vid VLAN_ID dev DEV [ tunnel_info id TUNNEL_ID ]\n"
@@ -26,7 +26,7 @@ static void usage(void)
 		"                                                     [ self ] [ master ]\n"
 		"       bridge vlan { show } [ dev DEV ] [ vid VLAN_ID ]\n"
 		"       bridge vlan { tunnelshow } [ dev DEV ] [ vid VLAN_ID ]\n");
-	exit(-1);
+	iprt_exit(-1);
 }
 
 static int parse_tunnel_info(int *argcp, char ***argvp, __u32 *tun_id_start,
@@ -44,18 +44,18 @@ static int parse_tunnel_info(int *argcp, char ***argvp, __u32 *tun_id_start,
 			*t = '\0';
 			if (get_u32(tun_id_start, *argv, 0) ||
 				    *tun_id_start >= 1u << 24)
-				invarg("invalid tun id", *argv);
+				return invarg("invalid tun id", *argv);
 			if (get_u32(tun_id_end, t + 1, 0) ||
 				    *tun_id_end >= 1u << 24)
-				invarg("invalid tun id", *argv);
+				return invarg("invalid tun id", *argv);
 
 		} else {
 			if (get_u32(tun_id_start, *argv, 0) ||
 				    *tun_id_start >= 1u << 24)
-				invarg("invalid tun id", *argv);
+				return invarg("invalid tun id", *argv);
 		}
 	} else {
-		invarg("tunnel id expected", *argv);
+		return invarg("tunnel id expected", *argv);
 	}
 
 	*argcp = argc;
@@ -541,12 +541,12 @@ static int vlan_show(int argc, char **argv)
 		if (strcmp(*argv, "dev") == 0) {
 			NEXT_ARG();
 			if (filter_dev)
-				duparg("dev", *argv);
+				return duparg("dev", *argv);
 			filter_dev = *argv;
 		} else if (strcmp(*argv, "vid") == 0) {
 			NEXT_ARG();
 			if (filter_vlan)
-				duparg("vid", *argv);
+				return duparg("vid", *argv);
 			filter_vlan = atoi(*argv);
 		}
 		argc--; argv++;
@@ -558,7 +558,8 @@ static int vlan_show(int argc, char **argv)
 			return nodev(filter_dev);
 	}
 
-	new_json_obj(json);
+	if (new_json_obj(json))
+		return -1;
 
 	if (!show_stats) {
 		if (rtnl_wilddump_req_filter(&rth, PF_BRIDGE, RTM_GETLINK,
@@ -566,7 +567,7 @@ static int vlan_show(int argc, char **argv)
 					      RTEXT_FILTER_BRVLAN_COMPRESSED :
 					      RTEXT_FILTER_BRVLAN)) < 0) {
 			perror("Cannont send dump request");
-			exit(1);
+			iprt_exit(1);
 		}
 
 		if (!is_json_context()) {
@@ -583,7 +584,7 @@ static int vlan_show(int argc, char **argv)
 			ret = rtnl_dump_filter(&rth, print_vlan, stdout);
 		if (ret < 0) {
 			fprintf(stderr, "Dump ternminated\n");
-			exit(1);
+			iprt_exit(1);
 		}
 	} else {
 		__u32 filt_mask;
@@ -593,7 +594,7 @@ static int vlan_show(int argc, char **argv)
 						   RTM_GETSTATS,
 						   filt_mask) < 0) {
 			perror("Cannont send dump request");
-			exit(1);
+			iprt_exit(1);
 		}
 
 		if (!is_json_context())
@@ -601,7 +602,7 @@ static int vlan_show(int argc, char **argv)
 
 		if (rtnl_dump_filter(&rth, print_vlan_stats, stdout) < 0) {
 			fprintf(stderr, "Dump terminated\n");
-			exit(1);
+			iprt_exit(1);
 		}
 
 		filt_mask = IFLA_STATS_FILTER_BIT(IFLA_STATS_LINK_XSTATS_SLAVE);
@@ -609,12 +610,12 @@ static int vlan_show(int argc, char **argv)
 						   RTM_GETSTATS,
 						   filt_mask) < 0) {
 			perror("Cannont send slave dump request");
-			exit(1);
+			iprt_exit(1);
 		}
 
 		if (rtnl_dump_filter(&rth, print_vlan_stats, stdout) < 0) {
 			fprintf(stderr, "Dump terminated\n");
-			exit(1);
+			iprt_exit(1);
 		}
 	}
 
@@ -679,11 +680,11 @@ int do_vlan(int argc, char **argv)
 			return vlan_show(argc-1, argv+1);
 		}
 		if (matches(*argv, "help") == 0)
-			usage();
+			return usage();
 	} else {
 		return vlan_show(0, NULL);
 	}
 
 	fprintf(stderr, "Command \"%s\" is unknown, try \"bridge vlan help\".\n", *argv);
-	exit(-1);
+	iprt_exit(-1);
 }

@@ -32,7 +32,7 @@
 
 static unsigned int filter_index, filter_vlan, filter_state;
 
-static void usage(void)
+static int usage(void)
 {
 	fprintf(stderr,
 		"Usage: bridge fdb { add | append | del | replace } ADDR dev DEV\n"
@@ -40,7 +40,7 @@ static void usage(void)
 		"              [ local | static | dynamic ] [ dst IPADDR ] [ vlan VID ]\n"
 		"              [ port PORT] [ vni VNI ] [ via DEV ]\n"
 		"       bridge fdb [ show [ br BRDEV ] [ brport DEV ] [ vlan VID ] [ state STATE ] ]\n");
-	exit(-1);
+	iprt_exit(-1);
 }
 
 static const char *state_n2a(unsigned int s)
@@ -281,18 +281,18 @@ static int fdb_show(int argc, char **argv)
 		} else if (strcmp(*argv, "vlan") == 0) {
 			NEXT_ARG();
 			if (filter_vlan)
-				duparg("vlan", *argv);
+				return duparg("vlan", *argv);
 			filter_vlan = atoi(*argv);
 		} else if (strcmp(*argv, "state") == 0) {
 			unsigned int state;
 
 			NEXT_ARG();
 			if (state_a2n(&state, *argv))
-				invarg("invalid state", *argv);
+				return invarg("invalid state", *argv);
 			filter_state |= state;
 		} else {
 			if (matches(*argv, "help") == 0)
-				usage();
+				return usage();
 		}
 		argc--; argv++;
 	}
@@ -318,13 +318,14 @@ static int fdb_show(int argc, char **argv)
 
 	if (rtnl_dump_request(&rth, RTM_GETNEIGH, &req.ifm, msg_size) < 0) {
 		perror("Cannot send dump request");
-		exit(1);
+		iprt_exit(1);
 	}
 
-	new_json_obj(json);
+	if (new_json_obj(json))
+		return -1;
 	if (rtnl_dump_filter(&rth, print_fdb, stdout) < 0) {
 		fprintf(stderr, "Dump terminated\n");
-		exit(1);
+		iprt_exit(1);
 	}
 	delete_json_obj();
 	fflush(stdout);
@@ -363,7 +364,7 @@ static int fdb_modify(int cmd, int flags, int argc, char **argv)
 		} else if (strcmp(*argv, "dst") == 0) {
 			NEXT_ARG();
 			if (dst_ok)
-				duparg2("dst", *argv);
+				return duparg2("dst", *argv);
 			get_addr(&dst, *argv, preferred_family);
 			dst_ok = 1;
 		} else if (strcmp(*argv, "port") == 0) {
@@ -375,21 +376,21 @@ static int fdb_modify(int cmd, int flags, int argc, char **argv)
 
 				pse = getservbyname(*argv, "udp");
 				if (!pse)
-					invarg("invalid port\n", *argv);
+					return invarg("invalid port\n", *argv);
 				port = ntohs(pse->s_port);
 			} else if (port > 0xffff)
-				invarg("invalid port\n", *argv);
+				return invarg("invalid port\n", *argv);
 		} else if (strcmp(*argv, "vni") == 0) {
 			NEXT_ARG();
 			vni = strtoul(*argv, &endptr, 0);
 			if ((endptr && *endptr) ||
 			    (vni >> 24) || vni == ULONG_MAX)
-				invarg("invalid VNI\n", *argv);
+				return invarg("invalid VNI\n", *argv);
 		} else if (strcmp(*argv, "via") == 0) {
 			NEXT_ARG();
 			via = ll_name_to_index(*argv);
 			if (!via)
-				exit(nodev(*argv));
+				iprt_exit(nodev(*argv));
 		} else if (strcmp(*argv, "self") == 0) {
 			req.ndm.ndm_flags |= NTF_SELF;
 		} else if (matches(*argv, "master") == 0) {
@@ -407,7 +408,7 @@ static int fdb_modify(int cmd, int flags, int argc, char **argv)
 			req.ndm.ndm_state &= ~NUD_NOARP;
 		} else if (matches(*argv, "vlan") == 0) {
 			if (vid >= 0)
-				duparg2("vlan", *argv);
+				return duparg2("vlan", *argv);
 			NEXT_ARG();
 			vid = atoi(*argv);
 		} else if (matches(*argv, "use") == 0) {
@@ -419,9 +420,9 @@ static int fdb_modify(int cmd, int flags, int argc, char **argv)
 				NEXT_ARG();
 
 			if (matches(*argv, "help") == 0)
-				usage();
+				return usage();
 			if (addr)
-				duparg2("to", *argv);
+				return duparg2("to", *argv);
 			addr = *argv;
 		}
 		argc--; argv++;
@@ -493,10 +494,10 @@ int do_fdb(int argc, char **argv)
 		    matches(*argv, "list") == 0)
 			return fdb_show(argc-1, argv+1);
 		if (matches(*argv, "help") == 0)
-			usage();
+			return usage();
 	} else
 		return fdb_show(0, NULL);
 
 	fprintf(stderr, "Command \"%s\" is unknown, try \"bridge fdb help\".\n", *argv);
-	exit(-1);
+	iprt_exit(-1);
 }

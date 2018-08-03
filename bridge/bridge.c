@@ -32,9 +32,7 @@ char *batch_file;
 int force;
 const char *_SL_;
 
-static void usage(void) __attribute__((noreturn));
-
-static void usage(void)
+static int usage(void)
 {
 	fprintf(stderr,
 "Usage: bridge [ OPTIONS ] OBJECT { COMMAND | help }\n"
@@ -43,12 +41,12 @@ static void usage(void)
 "	OPTIONS := { -V[ersion] | -s[tatistics] | -d[etails] |\n"
 "		     -o[neline] | -t[imestamp] | -n[etns] name |\n"
 "		     -c[ompressvlans] -color -p[retty] -j{son} }\n");
-	exit(-1);
+	iprt_exit(-1);
 }
 
 static int do_help(int argc, char **argv)
 {
-	usage();
+	return usage();
 }
 
 
@@ -139,10 +137,10 @@ main(int argc, char **argv)
 			opt++;
 
 		if (matches(opt, "-help") == 0) {
-			usage();
+			return usage();
 		} else if (matches(opt, "-Version") == 0) {
 			printf("bridge utility, 0.0\n");
-			exit(0);
+			iprt_exit(0);
 		} else if (matches(opt, "-stats") == 0 ||
 			   matches(opt, "-statistics") == 0) {
 			++show_stats;
@@ -156,15 +154,15 @@ main(int argc, char **argv)
 			argc--;
 			argv++;
 			if (argc <= 1)
-				usage();
+				return usage();
 			if (strcmp(argv[1], "inet") == 0)
 				preferred_family = AF_INET;
 			else if (strcmp(argv[1], "inet6") == 0)
 				preferred_family = AF_INET6;
 			else if (strcmp(argv[1], "help") == 0)
-				usage();
+				return usage();
 			else
-				invarg("invalid protocol family", argv[1]);
+				return invarg("invalid protocol family", argv[1]);
 		} else if (strcmp(opt, "-4") == 0) {
 			preferred_family = AF_INET;
 		} else if (strcmp(opt, "-6") == 0) {
@@ -172,7 +170,7 @@ main(int argc, char **argv)
 		} else if (matches(opt, "-netns") == 0) {
 			NEXT_ARG();
 			if (netns_switch(argv[1]))
-				exit(-1);
+				iprt_exit(-1);
 		} else if (matches(opt, "-color") == 0) {
 			enable_color();
 		} else if (matches(opt, "-compressvlans") == 0) {
@@ -187,13 +185,13 @@ main(int argc, char **argv)
 			argc--;
 			argv++;
 			if (argc <= 1)
-				usage();
+				return usage();
 			batch_file = argv[1];
 		} else {
 			fprintf(stderr,
 				"Option \"%s\" is unknown, try \"bridge help\".\n",
 				opt);
-			exit(-1);
+			iprt_exit(-1);
 		}
 		argc--;	argv++;
 	}
@@ -207,11 +205,11 @@ main(int argc, char **argv)
 		return batch(batch_file);
 
 	if (rtnl_open(&rth, 0) < 0)
-		exit(1);
+		iprt_exit(1);
 
 	if (argc > 1)
 		return do_cmd(argv[1], argc-1, argv+1);
 
 	rtnl_close(&rth);
-	usage();
+	return usage();
 }

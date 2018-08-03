@@ -28,11 +28,11 @@
 
 static unsigned int filter_index, filter_vlan;
 
-static void usage(void)
+static int usage(void)
 {
 	fprintf(stderr, "Usage: bridge mdb { add | del } dev DEV port PORT grp GROUP [permanent | temp] [vid VID]\n");
 	fprintf(stderr, "       bridge mdb {show} [ dev DEV ] [ vid VID ]\n");
-	exit(-1);
+	iprt_exit(-1);
 }
 
 static bool is_temp_mcast_rtr(__u8 type)
@@ -274,12 +274,12 @@ static int mdb_show(int argc, char **argv)
 		if (strcmp(*argv, "dev") == 0) {
 			NEXT_ARG();
 			if (filter_dev)
-				duparg("dev", *argv);
+				return duparg("dev", *argv);
 			filter_dev = *argv;
 		} else if (strcmp(*argv, "vid") == 0) {
 			NEXT_ARG();
 			if (filter_vlan)
-				duparg("vid", *argv);
+				return duparg("vid", *argv);
 			filter_vlan = atoi(*argv);
 		}
 		argc--; argv++;
@@ -291,7 +291,8 @@ static int mdb_show(int argc, char **argv)
 			return nodev(filter_dev);
 	}
 
-	new_json_obj(json);
+	if (new_json_obj(json))
+		return -1;
 
 	/* get mdb entries*/
 	if (rtnl_wilddump_request(&rth, PF_BRIDGE, RTM_GETMDB) < 0) {
@@ -346,7 +347,7 @@ static int mdb_modify(int cmd, int flags, int argc, char **argv)
 			vid = atoi(*argv);
 		} else {
 			if (matches(*argv, "help") == 0)
-				usage();
+				return usage();
 		}
 		argc--; argv++;
 	}
@@ -397,10 +398,10 @@ int do_mdb(int argc, char **argv)
 		    matches(*argv, "list") == 0)
 			return mdb_show(argc-1, argv+1);
 		if (matches(*argv, "help") == 0)
-			usage();
+			return usage();
 	} else
 		return mdb_show(0, NULL);
 
 	fprintf(stderr, "Command \"%s\" is unknown, try \"bridge mdb help\".\n", *argv);
-	exit(-1);
+	iprt_exit(-1);
 }

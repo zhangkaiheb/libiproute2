@@ -237,7 +237,7 @@ int print_linkinfo(const struct sockaddr_nl *who,
 	return 0;
 }
 
-static void usage(void)
+static int usage(void)
 {
 	fprintf(stderr, "Usage: bridge link set dev DEV [ cost COST ] [ priority PRIO ] [ state STATE ]\n");
 	fprintf(stderr, "                               [ guard {on | off} ]\n");
@@ -253,7 +253,7 @@ static void usage(void)
 	fprintf(stderr, "                               [ hwmode {vepa | veb} ]\n");
 	fprintf(stderr, "                               [ self ] [ master ]\n");
 	fprintf(stderr, "       bridge link show [dev DEV]\n");
-	exit(-1);
+	iprt_exit(-1);
 }
 
 static bool on_off(char *arg, __s8 *attr, char *val)
@@ -387,7 +387,7 @@ static int brlink_modify(int argc, char **argv)
 				    *argv))
 				return -1;
 		} else {
-			usage();
+			return usage();
 		}
 		argc--; argv++;
 	}
@@ -478,7 +478,7 @@ static int brlink_show(int argc, char **argv)
 		if (strcmp(*argv, "dev") == 0) {
 			NEXT_ARG();
 			if (filter_dev)
-				duparg("dev", *argv);
+				return duparg("dev", *argv);
 			filter_dev = *argv;
 		}
 		argc--; argv++;
@@ -496,19 +496,20 @@ static int brlink_show(int argc, char **argv)
 					      RTEXT_FILTER_BRVLAN_COMPRESSED :
 					      RTEXT_FILTER_BRVLAN)) < 0) {
 			perror("Cannon send dump request");
-			exit(1);
+			iprt_exit(1);
 		}
 	} else {
 		if (rtnl_wilddump_request(&rth, PF_BRIDGE, RTM_GETLINK) < 0) {
 			perror("Cannon send dump request");
-			exit(1);
+			iprt_exit(1);
 		}
 	}
 
-	new_json_obj(json);
+	if (new_json_obj(json))
+		return -1;
 	if (rtnl_dump_filter(&rth, print_linkinfo, stdout) < 0) {
 		fprintf(stderr, "Dump terminated\n");
-		exit(1);
+		iprt_exit(1);
 	}
 
 	delete_json_obj();
@@ -528,10 +529,10 @@ int do_link(int argc, char **argv)
 		    matches(*argv, "list") == 0)
 			return brlink_show(argc-1, argv+1);
 		if (matches(*argv, "help") == 0)
-			usage();
+			return usage();
 	} else
 		return brlink_show(0, NULL);
 
 	fprintf(stderr, "Command \"%s\" is unknown, try \"bridge link help\".\n", *argv);
-	exit(-1);
+	iprt_exit(-1);
 }
