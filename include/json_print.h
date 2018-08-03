@@ -12,6 +12,7 @@
 #ifndef _JSON_PRINT_H_
 #define _JSON_PRINT_H_
 
+#include "iprt.h"
 #include "json_writer.h"
 #include "color.h"
 
@@ -29,7 +30,7 @@ enum output_type {
 	PRINT_ANY = 4,
 };
 
-void new_json_obj(int json);
+int new_json_obj(int json);
 void delete_json_obj(void);
 
 bool is_json_context(void);

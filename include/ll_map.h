@@ -2,10 +2,12 @@
 #ifndef __LL_MAP_H__
 #define __LL_MAP_H__ 1
 
+#include "iprt.h"
+
 int ll_remember_index(const struct sockaddr_nl *who,
 		      struct nlmsghdr *n, void *arg);
 
-void ll_init_map(struct rtnl_handle *rth);
+int ll_init_map(struct rtnl_handle *rth);
 unsigned ll_name_to_index(const char *name);
 const char *ll_index_to_name(unsigned idx);
 int ll_index_to_type(unsigned idx);

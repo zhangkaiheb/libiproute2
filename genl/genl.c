@@ -94,14 +94,12 @@ noexist:
 	return f;
 }
 
-static void usage(void) __attribute__((noreturn));
-
-static void usage(void)
+static int usage(void)
 {
 	fprintf(stderr, "Usage: genl [ OPTIONS ] OBJECT | help }\n"
 	                "where  OBJECT := { ctrl etc }\n"
 	                "       OPTIONS := { -s[tatistics] | -d[etails] | -r[aw] }\n");
-	exit(-1);
+	iprt_exit(-1);
 }
 
 int main(int argc, char **argv)
@@ -118,13 +116,13 @@ int main(int argc, char **argv)
 			++show_raw;
 		} else if (matches(argv[1], "-Version") == 0) {
 			printf("genl utility, iproute2-ss%s\n", SNAPSHOT);
-			exit(0);
+			iprt_exit(0);
 		} else if (matches(argv[1], "-help") == 0) {
-			usage();
+			return usage();
 		} else {
 			fprintf(stderr, "Option \"%s\" is unknown, try "
 				"\"genl -help\".\n", argv[1]);
-			exit(-1);
+			iprt_exit(-1);
 		}
 		argc--;	argv++;
 	}
@@ -135,12 +133,12 @@ int main(int argc, char **argv)
 		a = get_genl_kind(argv[1]);
 		if (!a) {
 			fprintf(stderr,"bad genl %s\n", argv[1]);
-			exit(-1);
+			iprt_exit(-1);
 		}
 
 		ret = a->parse_genlopt(a, argc-1, argv+1);
 		return ret;
 	}
 
-	usage();
+	return usage();
 }

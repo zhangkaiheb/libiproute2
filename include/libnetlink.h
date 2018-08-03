@@ -12,6 +12,7 @@
 #include <linux/neighbour.h>
 #include <linux/netconf.h>
 #include <arpa/inet.h>
+#include "iprt.h"
 
 struct rtnl_handle {
 	int			fd;

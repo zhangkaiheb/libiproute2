@@ -58,7 +58,7 @@ int genl_ctrl_resolve_family(const char *family)
 
 	if (rtnl_open_byproto(&rth, 0, NETLINK_GENERIC) < 0) {
 		fprintf(stderr, "Cannot open generic netlink socket\n");
-		exit(1);
+		iprt_exit(1);
 	}
 
 	addattr_l(nlh, 128, CTRL_ATTR_FAMILY_NAME, family, strlen(family) + 1);
@@ -305,7 +305,7 @@ static int ctrl_list(int cmd, int argc, char **argv)
 
 	if (rtnl_open_byproto(&rth, 0, NETLINK_GENERIC) < 0) {
 		fprintf(stderr, "Cannot open generic netlink socket\n");
-		exit(1);
+		iprt_exit(1);
 	}
 
 	if (cmd == CTRL_CMD_GETFAMILY) {

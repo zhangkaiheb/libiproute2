@@ -9,6 +9,7 @@
 #include <stdbool.h>
 #include <time.h>
 
+#include "iprt.h"
 #include "libnetlink.h"
 #include "ll_map.h"
 #include "rtm_map.h"
@@ -39,9 +40,9 @@ extern bool do_all;
 #define SPRINT_BSIZE 64
 #define SPRINT_BUF(x)	char x[SPRINT_BSIZE]
 
-void incomplete_command(void) __attribute__((noreturn));
+int incomplete_command(void);
 
-#define NEXT_ARG() do { argv++; if (--argc <= 0) incomplete_command(); } while(0)
+#define NEXT_ARG() do { argv++; if (--argc <= 0) return incomplete_command(); } while(0)
 #define NEXT_ARG_OK() (argc - 1 > 0)
 #define NEXT_ARG_FWD() do { argv++; argc--; } while(0)
 #define PREV_ARG() do { argv--; argc++; } while(0)
@@ -178,10 +179,10 @@ const char *rt_addr_n2a(int af, int len, const void *addr);
 int read_family(const char *name);
 const char *family_name(int family);
 
-void missarg(const char *) __attribute__((noreturn));
-void invarg(const char *, const char *) __attribute__((noreturn));
-void duparg(const char *, const char *) __attribute__((noreturn));
-void duparg2(const char *, const char *) __attribute__((noreturn));
+int missarg(const char *);
+int invarg(const char *, const char *);
+int duparg(const char *, const char *);
+int duparg2(const char *, const char *);
 int nodev(const char *dev);
 int check_ifname(const char *);
 int get_ifname(char *, const char *);
@@ -223,7 +224,7 @@ static inline __u32 nl_mgrp(__u32 group)
 {
 	if (group > 31 ) {
 		fprintf(stderr, "Use setsockopt for this group %d\n", group);
-		exit(-1);
+		iprt_exit(-1);
 	}
 	return group ? (1 << (group - 1)) : 0;
 }
