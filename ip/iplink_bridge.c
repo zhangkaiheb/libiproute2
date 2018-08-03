@@ -88,31 +88,31 @@ static int bridge_parse_opt(struct link_util *lu, int argc, char **argv,
 		if (matches(*argv, "forward_delay") == 0) {
 			NEXT_ARG();
 			if (get_u32(&val, *argv, 0))
-				invarg("invalid forward_delay", *argv);
+				return invarg("invalid forward_delay", *argv);
 
 			addattr32(n, 1024, IFLA_BR_FORWARD_DELAY, val);
 		} else if (matches(*argv, "hello_time") == 0) {
 			NEXT_ARG();
 			if (get_u32(&val, *argv, 0))
-				invarg("invalid hello_time", *argv);
+				return invarg("invalid hello_time", *argv);
 
 			addattr32(n, 1024, IFLA_BR_HELLO_TIME, val);
 		} else if (matches(*argv, "max_age") == 0) {
 			NEXT_ARG();
 			if (get_u32(&val, *argv, 0))
-				invarg("invalid max_age", *argv);
+				return invarg("invalid max_age", *argv);
 
 			addattr32(n, 1024, IFLA_BR_MAX_AGE, val);
 		} else if (matches(*argv, "ageing_time") == 0) {
 			NEXT_ARG();
 			if (get_u32(&val, *argv, 0))
-				invarg("invalid ageing_time", *argv);
+				return invarg("invalid ageing_time", *argv);
 
 			addattr32(n, 1024, IFLA_BR_AGEING_TIME, val);
 		} else if (matches(*argv, "stp_state") == 0) {
 			NEXT_ARG();
 			if (get_u32(&val, *argv, 0))
-				invarg("invalid stp_state", *argv);
+				return invarg("invalid stp_state", *argv);
 
 			addattr32(n, 1024, IFLA_BR_STP_STATE, val);
 		} else if (matches(*argv, "priority") == 0) {
@@ -120,7 +120,7 @@ static int bridge_parse_opt(struct link_util *lu, int argc, char **argv,
 
 			NEXT_ARG();
 			if (get_u16(&prio, *argv, 0))
-				invarg("invalid priority", *argv);
+				return invarg("invalid priority", *argv);
 
 			addattr16(n, 1024, IFLA_BR_PRIORITY, prio);
 		} else if (matches(*argv, "vlan_filtering") == 0) {
@@ -128,7 +128,7 @@ static int bridge_parse_opt(struct link_util *lu, int argc, char **argv,
 
 			NEXT_ARG();
 			if (get_u8(&vlan_filter, *argv, 0))
-				invarg("invalid vlan_filtering", *argv);
+				return invarg("invalid vlan_filtering", *argv);
 
 			addattr8(n, 1024, IFLA_BR_VLAN_FILTERING, vlan_filter);
 		} else if (matches(*argv, "vlan_protocol") == 0) {
@@ -136,7 +136,7 @@ static int bridge_parse_opt(struct link_util *lu, int argc, char **argv,
 
 			NEXT_ARG();
 			if (ll_proto_a2n(&vlan_proto, *argv))
-				invarg("invalid vlan_protocol", *argv);
+				return invarg("invalid vlan_protocol", *argv);
 
 			addattr16(n, 1024, IFLA_BR_VLAN_PROTOCOL, vlan_proto);
 		} else if (matches(*argv, "group_fwd_mask") == 0) {
@@ -144,7 +144,7 @@ static int bridge_parse_opt(struct link_util *lu, int argc, char **argv,
 
 			NEXT_ARG();
 			if (get_u16(&fwd_mask, *argv, 0))
-				invarg("invalid group_fwd_mask", *argv);
+				return invarg("invalid group_fwd_mask", *argv);
 
 			addattr16(n, 1024, IFLA_BR_GROUP_FWD_MASK, fwd_mask);
 		} else if (matches(*argv, "group_address") == 0) {
@@ -163,7 +163,7 @@ static int bridge_parse_opt(struct link_util *lu, int argc, char **argv,
 
 			NEXT_ARG();
 			if (get_u16(&default_pvid, *argv, 0))
-				invarg("invalid vlan_default_pvid", *argv);
+				return invarg("invalid vlan_default_pvid", *argv);
 
 			addattr16(n, 1024, IFLA_BR_VLAN_DEFAULT_PVID,
 				  default_pvid);
@@ -172,7 +172,7 @@ static int bridge_parse_opt(struct link_util *lu, int argc, char **argv,
 
 			NEXT_ARG();
 			if (get_u8(&vlan_stats_enabled, *argv, 0))
-				invarg("invalid vlan_stats_enabled", *argv);
+				return invarg("invalid vlan_stats_enabled", *argv);
 			addattr8(n, 1024, IFLA_BR_VLAN_STATS_ENABLED,
 				  vlan_stats_enabled);
 		} else if (matches(*argv, "mcast_router") == 0) {
@@ -180,7 +180,7 @@ static int bridge_parse_opt(struct link_util *lu, int argc, char **argv,
 
 			NEXT_ARG();
 			if (get_u8(&mcast_router, *argv, 0))
-				invarg("invalid mcast_router", *argv);
+				return invarg("invalid mcast_router", *argv);
 
 			addattr8(n, 1024, IFLA_BR_MCAST_ROUTER, mcast_router);
 		} else if (matches(*argv, "mcast_snooping") == 0) {
@@ -188,7 +188,7 @@ static int bridge_parse_opt(struct link_util *lu, int argc, char **argv,
 
 			NEXT_ARG();
 			if (get_u8(&mcast_snoop, *argv, 0))
-				invarg("invalid mcast_snooping", *argv);
+				return invarg("invalid mcast_snooping", *argv);
 
 			addattr8(n, 1024, IFLA_BR_MCAST_SNOOPING, mcast_snoop);
 		} else if (matches(*argv, "mcast_query_use_ifaddr") == 0) {
@@ -196,7 +196,7 @@ static int bridge_parse_opt(struct link_util *lu, int argc, char **argv,
 
 			NEXT_ARG();
 			if (get_u8(&mcast_qui, *argv, 0))
-				invarg("invalid mcast_query_use_ifaddr",
+				return invarg("invalid mcast_query_use_ifaddr",
 				       *argv);
 
 			addattr8(n, 1024, IFLA_BR_MCAST_QUERY_USE_IFADDR,
@@ -206,7 +206,7 @@ static int bridge_parse_opt(struct link_util *lu, int argc, char **argv,
 
 			NEXT_ARG();
 			if (get_u8(&mcast_querier, *argv, 0))
-				invarg("invalid mcast_querier", *argv);
+				return invarg("invalid mcast_querier", *argv);
 
 			addattr8(n, 1024, IFLA_BR_MCAST_QUERIER, mcast_querier);
 		} else if (matches(*argv, "mcast_hash_elasticity") == 0) {
@@ -214,7 +214,7 @@ static int bridge_parse_opt(struct link_util *lu, int argc, char **argv,
 
 			NEXT_ARG();
 			if (get_u32(&mcast_hash_el, *argv, 0))
-				invarg("invalid mcast_hash_elasticity",
+				return invarg("invalid mcast_hash_elasticity",
 				       *argv);
 
 			addattr32(n, 1024, IFLA_BR_MCAST_HASH_ELASTICITY,
@@ -224,7 +224,7 @@ static int bridge_parse_opt(struct link_util *lu, int argc, char **argv,
 
 			NEXT_ARG();
 			if (get_u32(&mcast_hash_max, *argv, 0))
-				invarg("invalid mcast_hash_max", *argv);
+				return invarg("invalid mcast_hash_max", *argv);
 
 			addattr32(n, 1024, IFLA_BR_MCAST_HASH_MAX,
 				  mcast_hash_max);
@@ -233,7 +233,7 @@ static int bridge_parse_opt(struct link_util *lu, int argc, char **argv,
 
 			NEXT_ARG();
 			if (get_u32(&mcast_lmc, *argv, 0))
-				invarg("invalid mcast_last_member_count",
+				return invarg("invalid mcast_last_member_count",
 				       *argv);
 
 			addattr32(n, 1024, IFLA_BR_MCAST_LAST_MEMBER_CNT,
@@ -243,7 +243,7 @@ static int bridge_parse_opt(struct link_util *lu, int argc, char **argv,
 
 			NEXT_ARG();
 			if (get_u32(&mcast_sqc, *argv, 0))
-				invarg("invalid mcast_startup_query_count",
+				return invarg("invalid mcast_startup_query_count",
 				       *argv);
 
 			addattr32(n, 1024, IFLA_BR_MCAST_STARTUP_QUERY_CNT,
@@ -253,7 +253,7 @@ static int bridge_parse_opt(struct link_util *lu, int argc, char **argv,
 
 			NEXT_ARG();
 			if (get_u64(&mcast_last_member_intvl, *argv, 0))
-				invarg("invalid mcast_last_member_interval",
+				return invarg("invalid mcast_last_member_interval",
 				       *argv);
 
 			addattr64(n, 1024, IFLA_BR_MCAST_LAST_MEMBER_INTVL,
@@ -263,7 +263,7 @@ static int bridge_parse_opt(struct link_util *lu, int argc, char **argv,
 
 			NEXT_ARG();
 			if (get_u64(&mcast_membership_intvl, *argv, 0))
-				invarg("invalid mcast_membership_interval",
+				return invarg("invalid mcast_membership_interval",
 				       *argv);
 
 			addattr64(n, 1024, IFLA_BR_MCAST_MEMBERSHIP_INTVL,
@@ -273,7 +273,7 @@ static int bridge_parse_opt(struct link_util *lu, int argc, char **argv,
 
 			NEXT_ARG();
 			if (get_u64(&mcast_querier_intvl, *argv, 0))
-				invarg("invalid mcast_querier_interval",
+				return invarg("invalid mcast_querier_interval",
 				       *argv);
 
 			addattr64(n, 1024, IFLA_BR_MCAST_QUERIER_INTVL,
@@ -283,7 +283,7 @@ static int bridge_parse_opt(struct link_util *lu, int argc, char **argv,
 
 			NEXT_ARG();
 			if (get_u64(&mcast_query_intvl, *argv, 0))
-				invarg("invalid mcast_query_interval",
+				return invarg("invalid mcast_query_interval",
 				       *argv);
 
 			addattr64(n, 1024, IFLA_BR_MCAST_QUERY_INTVL,
@@ -293,7 +293,7 @@ static int bridge_parse_opt(struct link_util *lu, int argc, char **argv,
 
 			NEXT_ARG();
 			if (get_u64(&mcast_query_resp_intvl, *argv, 0))
-				invarg("invalid mcast_query_response_interval",
+				return invarg("invalid mcast_query_response_interval",
 				       *argv);
 
 			addattr64(n, 1024, IFLA_BR_MCAST_QUERY_RESPONSE_INTVL,
@@ -303,7 +303,7 @@ static int bridge_parse_opt(struct link_util *lu, int argc, char **argv,
 
 			NEXT_ARG();
 			if (get_u64(&mcast_startup_query_intvl, *argv, 0))
-				invarg("invalid mcast_startup_query_interval",
+				return invarg("invalid mcast_startup_query_interval",
 				       *argv);
 
 			addattr64(n, 1024, IFLA_BR_MCAST_STARTUP_QUERY_INTVL,
@@ -313,7 +313,7 @@ static int bridge_parse_opt(struct link_util *lu, int argc, char **argv,
 
 			NEXT_ARG();
 			if (get_u8(&mcast_stats_enabled, *argv, 0))
-				invarg("invalid mcast_stats_enabled", *argv);
+				return invarg("invalid mcast_stats_enabled", *argv);
 			addattr8(n, 1024, IFLA_BR_MCAST_STATS_ENABLED,
 				  mcast_stats_enabled);
 		} else if (matches(*argv, "mcast_igmp_version") == 0) {
@@ -321,7 +321,7 @@ static int bridge_parse_opt(struct link_util *lu, int argc, char **argv,
 
 			NEXT_ARG();
 			if (get_u8(&igmp_version, *argv, 0))
-				invarg("invalid mcast_igmp_version", *argv);
+				return invarg("invalid mcast_igmp_version", *argv);
 			addattr8(n, 1024, IFLA_BR_MCAST_IGMP_VERSION,
 				  igmp_version);
 		} else if (matches(*argv, "mcast_mld_version") == 0) {
@@ -329,7 +329,7 @@ static int bridge_parse_opt(struct link_util *lu, int argc, char **argv,
 
 			NEXT_ARG();
 			if (get_u8(&mld_version, *argv, 0))
-				invarg("invalid mcast_mld_version", *argv);
+				return invarg("invalid mcast_mld_version", *argv);
 			addattr8(n, 1024, IFLA_BR_MCAST_MLD_VERSION,
 				  mld_version);
 		} else if (matches(*argv, "nf_call_iptables") == 0) {
@@ -337,7 +337,7 @@ static int bridge_parse_opt(struct link_util *lu, int argc, char **argv,
 
 			NEXT_ARG();
 			if (get_u8(&nf_call_ipt, *argv, 0))
-				invarg("invalid nf_call_iptables", *argv);
+				return invarg("invalid nf_call_iptables", *argv);
 
 			addattr8(n, 1024, IFLA_BR_NF_CALL_IPTABLES,
 				 nf_call_ipt);
@@ -346,7 +346,7 @@ static int bridge_parse_opt(struct link_util *lu, int argc, char **argv,
 
 			NEXT_ARG();
 			if (get_u8(&nf_call_ip6t, *argv, 0))
-				invarg("invalid nf_call_ip6tables", *argv);
+				return invarg("invalid nf_call_ip6tables", *argv);
 
 			addattr8(n, 1024, IFLA_BR_NF_CALL_IP6TABLES,
 				 nf_call_ip6t);
@@ -355,7 +355,7 @@ static int bridge_parse_opt(struct link_util *lu, int argc, char **argv,
 
 			NEXT_ARG();
 			if (get_u8(&nf_call_arpt, *argv, 0))
-				invarg("invalid nf_call_arptables", *argv);
+				return invarg("invalid nf_call_arptables", *argv);
 
 			addattr8(n, 1024, IFLA_BR_NF_CALL_ARPTABLES,
 				 nf_call_arpt);
@@ -797,9 +797,9 @@ int bridge_parse_xstats(struct link_util *lu, int argc, char **argv)
 				return nodev(*argv);
 		} else if (strcmp(*argv, "help") == 0) {
 			bridge_print_xstats_help(lu, stdout);
-			exit(0);
+			iprt_exit(0);
 		} else {
-			invarg("unknown attribute", *argv);
+			return invarg("unknown attribute", *argv);
 		}
 		argc--; argv++;
 	}

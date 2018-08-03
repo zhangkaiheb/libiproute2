@@ -34,14 +34,14 @@
 
 static struct link_filter vrf_filter;
 
-static void usage(void)
+static int usage(void)
 {
 	fprintf(stderr, "Usage: ip vrf show [NAME] ...\n");
 	fprintf(stderr, "       ip vrf exec [NAME] cmd ...\n");
 	fprintf(stderr, "       ip vrf identify [PID]\n");
 	fprintf(stderr, "       ip vrf pids [NAME]\n");
 
-	exit(-1);
+	iprt_exit(-1);
 }
 
 /*
@@ -93,9 +93,9 @@ static int ipvrf_identify(int argc, char **argv)
 	if (argc < 1)
 		pid = getpid();
 	else if (argc > 1)
-		invarg("Extra arguments specified\n", argv[1]);
+		return invarg("Extra arguments specified\n", argv[1]);
 	else if (get_unsigned(&pid, argv[0], 10))
-		invarg("Invalid pid\n", argv[0]);
+		return invarg("Invalid pid\n", argv[0]);
 
 	rc = vrf_identify(pid, vrf, sizeof(vrf));
 	if (!rc) {
@@ -575,7 +575,7 @@ static int ipvrf_show(int argc, char **argv)
 	vrf_filter.kind = "vrf";
 
 	if (argc > 1)
-		usage();
+		return usage();
 
 	if (argc == 1) {
 		__u32 tb_id;
@@ -629,10 +629,10 @@ int do_ipvrf(int argc, char **argv)
 		return ipvrf_show(argc-1, argv+1);
 
 	if (matches(*argv, "help") == 0)
-		usage();
+		return usage();
 
 	fprintf(stderr, "Command \"%s\" is unknown, try \"ip vrf help\".\n",
 		*argv);
 
-	exit(-1);
+	iprt_exit(-1);
 }

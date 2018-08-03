@@ -45,9 +45,7 @@ enum {
 static struct link_filter filter;
 static int do_link;
 
-static void usage(void) __attribute__((noreturn));
-
-static void usage(void)
+static int usage(void)
 {
 	if (do_link) {
 		iplink_usage();
@@ -79,7 +77,7 @@ static void usage(void)
 	fprintf(stderr, "          nlmon | can | bond_slave | ipvlan | geneve | bridge_slave |\n");
 	fprintf(stderr, "          hsr | macsec | netdevsim\n");
 
-	exit(-1);
+	iprt_exit(-1);
 }
 
 static void print_link_flags(FILE *fp, unsigned int flags, unsigned int mdown)
@@ -1557,9 +1555,10 @@ static int ipaddr_showdump(void)
 	int err;
 
 	if (ipadd_dump_check_magic())
-		exit(-1);
+		iprt_exit(-1);
 
-	new_json_obj(json);
+	if (new_json_obj(json))
+		return -1;
 	open_json_object(NULL);
 	open_json_array(PRINT_JSON, "addr_info");
 
@@ -1569,7 +1568,7 @@ static int ipaddr_showdump(void)
 	close_json_object();
 	delete_json_obj();
 
-	exit(err);
+	iprt_exit(err);
 }
 
 static int restore_handler(const struct sockaddr_nl *nl,
@@ -1592,9 +1591,9 @@ static int restore_handler(const struct sockaddr_nl *nl,
 static int ipaddr_restore(void)
 {
 	if (ipadd_dump_check_magic())
-		exit(-1);
+		iprt_exit(-1);
 
-	exit(rtnl_from_file(stdin, &restore_handler, NULL));
+	iprt_exit(rtnl_from_file(stdin, &restore_handler, NULL));
 }
 
 void free_nlmsg_chain(struct nlmsg_chain *info)
@@ -1672,13 +1671,13 @@ static int ipaddr_flush(void)
 	while ((max_flush_loops == 0) || (round < max_flush_loops)) {
 		if (rtnl_wilddump_request(&rth, filter.family, RTM_GETADDR) < 0) {
 			perror("Cannot send dump request");
-			exit(1);
+			iprt_exit(1);
 		}
 		filter.flushed = 0;
 		if (rtnl_dump_filter_nc(&rth, print_addrinfo,
 					stdout, NLM_F_DUMP_INTR) < 0) {
 			fprintf(stderr, "Flush terminated\n");
-			exit(1);
+			iprt_exit(1);
 		}
 		if (filter.flushed == 0) {
  flush_done:
@@ -1805,7 +1804,7 @@ static int ipaddr_list_flush_or_save(int argc, char **argv, int action)
 		if (strcmp(*argv, "to") == 0) {
 			NEXT_ARG();
 			if (get_prefix(&filter.pfx, *argv, filter.family))
-				invarg("invalid \"to\"\n", *argv);
+				return invarg("invalid \"to\"\n", *argv);
 			if (filter.family == AF_UNSPEC)
 				filter.family = filter.pfx.family;
 		} else if (strcmp(*argv, "scope") == 0) {
@@ -1815,7 +1814,7 @@ static int ipaddr_list_flush_or_save(int argc, char **argv, int action)
 			filter.scopemask = -1;
 			if (rtnl_rtscope_a2n(&scope, *argv)) {
 				if (strcmp(*argv, "all") != 0)
-					invarg("invalid \"scope\"\n", *argv);
+					return invarg("invalid \"scope\"\n", *argv);
 				scope = RT_SCOPE_NOWHERE;
 				filter.scopemask = 0;
 			}
@@ -1830,14 +1829,14 @@ static int ipaddr_list_flush_or_save(int argc, char **argv, int action)
 		} else if (strcmp(*argv, "group") == 0) {
 			NEXT_ARG();
 			if (rtnl_group_a2n(&filter.group, *argv))
-				invarg("Invalid \"group\" value\n", *argv);
+				return invarg("Invalid \"group\" value\n", *argv);
 		} else if (strcmp(*argv, "master") == 0) {
 			int ifindex;
 
 			NEXT_ARG();
 			ifindex = ll_name_to_index(*argv);
 			if (!ifindex)
-				invarg("Device does not exist\n", *argv);
+				return invarg("Device does not exist\n", *argv);
 			filter.master = ifindex;
 		} else if (strcmp(*argv, "vrf") == 0) {
 			int ifindex;
@@ -1845,9 +1844,9 @@ static int ipaddr_list_flush_or_save(int argc, char **argv, int action)
 			NEXT_ARG();
 			ifindex = ll_name_to_index(*argv);
 			if (!ifindex)
-				invarg("Not a valid VRF name\n", *argv);
+				return invarg("Not a valid VRF name\n", *argv);
 			if (!name_is_vrf(*argv))
-				invarg("Not a valid VRF name\n", *argv);
+				return invarg("Not a valid VRF name\n", *argv);
 			filter.master = ifindex;
 		} else if (strcmp(*argv, "type") == 0) {
 			int soff;
@@ -1864,9 +1863,9 @@ static int ipaddr_list_flush_or_save(int argc, char **argv, int action)
 			if (strcmp(*argv, "dev") == 0)
 				NEXT_ARG();
 			else if (matches(*argv, "help") == 0)
-				usage();
+				return usage();
 			if (filter_dev)
-				duparg2("dev", *argv);
+				return duparg2("dev", *argv);
 			filter_dev = *argv;
 		}
 		argv++; argc--;
@@ -1885,26 +1884,27 @@ static int ipaddr_list_flush_or_save(int argc, char **argv, int action)
 
 	if (action == IPADD_SAVE) {
 		if (ipadd_save_prep())
-			exit(1);
+			iprt_exit(1);
 
 		if (rtnl_wilddump_request(&rth, preferred_family, RTM_GETADDR) < 0) {
 			perror("Cannot send dump request");
-			exit(1);
+			iprt_exit(1);
 		}
 
 		if (rtnl_dump_filter(&rth, save_nlmsg, stdout) < 0) {
 			fprintf(stderr, "Save terminated\n");
-			exit(1);
+			iprt_exit(1);
 		}
 
-		exit(0);
+		iprt_exit(0);
 	}
 
 	/*
 	 * Initialize a json_writer and open an array object
 	 * if -json was specified.
 	 */
-	new_json_obj(json);
+	if (new_json_obj(json))
+		return -1;
 
 	/*
 	 * If only filter_dev present and none of the other
@@ -1915,10 +1915,10 @@ static int ipaddr_list_flush_or_save(int argc, char **argv, int action)
 		if (iplink_get(0, filter_dev, RTEXT_FILTER_VF) < 0) {
 			perror("Cannot send link get request");
 			delete_json_obj();
-			exit(1);
+			iprt_exit(1);
 		}
 		delete_json_obj();
-		exit(0);
+		iprt_exit(0);
 	}
 
 	if (filter.family != AF_PACKET) {
@@ -1959,7 +1959,7 @@ out:
 	return 0;
 }
 
-static void
+static int
 ipaddr_loop_each_vf(struct rtattr *tb[], int vfnum, int *min, int *max)
 {
 	struct rtattr *vflist = tb[IFLA_VFINFO_LIST];
@@ -1974,21 +1974,21 @@ ipaddr_loop_each_vf(struct rtattr *tb[], int vfnum, int *min, int *max)
 
 		if (!vf[IFLA_VF_RATE]) {
 			fprintf(stderr, "VF min/max rate API not supported\n");
-			exit(1);
+			iprt_exit(1);
 		}
 
 		vf_rate = RTA_DATA(vf[IFLA_VF_RATE]);
 		if (vf_rate->vf == vfnum) {
 			*min = vf_rate->min_tx_rate;
 			*max = vf_rate->max_tx_rate;
-			return;
+			return 0;
 		}
 	}
 	fprintf(stderr, "Cannot find VF %d\n", vfnum);
-	exit(1);
+	iprt_exit(1);
 }
 
-void ipaddr_get_vf_rate(int vfnum, int *min, int *max, const char *dev)
+int ipaddr_get_vf_rate(int vfnum, int *min, int *max, const char *dev)
 {
 	struct nlmsg_chain linfo = { NULL, NULL};
 	struct rtattr *tb[IFLA_MAX+1];
@@ -2000,16 +2000,16 @@ void ipaddr_get_vf_rate(int vfnum, int *min, int *max, const char *dev)
 	idx = ll_name_to_index(dev);
 	if (idx == 0) {
 		fprintf(stderr, "Device %s does not exist\n", dev);
-		exit(1);
+		iprt_exit(1);
 	}
 
 	if (rtnl_wilddump_request(&rth, AF_UNSPEC, RTM_GETLINK) < 0) {
 		perror("Cannot send dump request");
-		exit(1);
+		iprt_exit(1);
 	}
 	if (rtnl_dump_filter(&rth, store_nlmsg, &linfo) < 0) {
 		fprintf(stderr, "Dump terminated\n");
-		exit(1);
+		iprt_exit(1);
 	}
 	for (l = linfo.head; l; l = l->next) {
 		n = &l->h;
@@ -2023,9 +2023,10 @@ void ipaddr_get_vf_rate(int vfnum, int *min, int *max, const char *dev)
 
 		if ((tb[IFLA_VFINFO_LIST] && tb[IFLA_NUM_VF])) {
 			ipaddr_loop_each_vf(tb, vfnum, min, max);
-			return;
+			return 0;
 		}
 	}
+	return 0;
 }
 
 int ipaddr_list_link(int argc, char **argv)
@@ -2095,7 +2096,7 @@ static int ipaddr_modify(int cmd, int flags, int argc, char **argv)
 			NEXT_ARG();
 
 			if (peer_len)
-				duparg("peer", *argv);
+				return duparg("peer", *argv);
 			get_prefix(&peer, *argv, req.ifa.ifa_family);
 			peer_len = peer.bytelen;
 			if (req.ifa.ifa_family == AF_UNSPEC)
@@ -2108,7 +2109,7 @@ static int ipaddr_modify(int cmd, int flags, int argc, char **argv)
 
 			NEXT_ARG();
 			if (brd_len)
-				duparg("broadcast", *argv);
+				return duparg("broadcast", *argv);
 			if (strcmp(*argv, "+") == 0)
 				brd_len = -1;
 			else if (strcmp(*argv, "-") == 0)
@@ -2125,7 +2126,7 @@ static int ipaddr_modify(int cmd, int flags, int argc, char **argv)
 
 			NEXT_ARG();
 			if (any_len)
-				duparg("anycast", *argv);
+				return duparg("anycast", *argv);
 			get_addr(&addr, *argv, req.ifa.ifa_family);
 			if (req.ifa.ifa_family == AF_UNSPEC)
 				req.ifa.ifa_family = addr.family;
@@ -2136,7 +2137,7 @@ static int ipaddr_modify(int cmd, int flags, int argc, char **argv)
 
 			NEXT_ARG();
 			if (rtnl_rtscope_a2n(&scope, *argv))
-				invarg("invalid scope value.", *argv);
+				return invarg("invalid scope value.", *argv);
 			req.ifa.ifa_scope = scope;
 			scoped = 1;
 		} else if (strcmp(*argv, "dev") == 0) {
@@ -2148,18 +2149,18 @@ static int ipaddr_modify(int cmd, int flags, int argc, char **argv)
 			addattr_l(&req.n, sizeof(req), IFA_LABEL, l, strlen(l)+1);
 		} else if (matches(*argv, "valid_lft") == 0) {
 			if (valid_lftp)
-				duparg("valid_lft", *argv);
+				return duparg("valid_lft", *argv);
 			NEXT_ARG();
 			valid_lftp = *argv;
 			if (set_lifetime(&valid_lft, *argv))
-				invarg("valid_lft value", *argv);
+				return invarg("valid_lft value", *argv);
 		} else if (matches(*argv, "preferred_lft") == 0) {
 			if (preferred_lftp)
-				duparg("preferred_lft", *argv);
+				return duparg("preferred_lft", *argv);
 			NEXT_ARG();
 			preferred_lftp = *argv;
 			if (set_lifetime(&preferred_lft, *argv))
-				invarg("preferred_lft value", *argv);
+				return invarg("preferred_lft value", *argv);
 		} else if (strcmp(*argv, "home") == 0) {
 			ifa_flags |= IFA_F_HOMEADDRESS;
 		} else if (strcmp(*argv, "nodad") == 0) {
@@ -2174,9 +2175,9 @@ static int ipaddr_modify(int cmd, int flags, int argc, char **argv)
 			if (strcmp(*argv, "local") == 0)
 				NEXT_ARG();
 			if (matches(*argv, "help") == 0)
-				usage();
+				return usage();
 			if (local_len)
-				duparg2("local", *argv);
+				return duparg2("local", *argv);
 			lcl_arg = *argv;
 			get_prefix(&lcl, *argv, req.ifa.ifa_family);
 			if (req.ifa.ifa_family == AF_UNSPEC)
@@ -2296,7 +2297,7 @@ int do_ipaddr(int argc, char **argv)
 	if (matches(*argv, "restore") == 0)
 		return ipaddr_restore();
 	if (matches(*argv, "help") == 0)
-		usage();
+		return usage();
 	fprintf(stderr, "Command \"%s\" is unknown, try \"ip address help\".\n", *argv);
-	exit(-1);
+	iprt_exit(-1);
 }

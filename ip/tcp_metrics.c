@@ -26,13 +26,13 @@
 #include "ip_common.h"
 #include "libgenl.h"
 
-static void usage(void)
+static int usage(void)
 {
 	fprintf(stderr, "Usage: ip tcp_metrics/tcpmetrics { COMMAND | help }\n");
 	fprintf(stderr, "       ip tcp_metrics { show | flush } SELECTOR\n");
 	fprintf(stderr, "       ip tcp_metrics delete [ address ] ADDRESS\n");
 	fprintf(stderr, "SELECTOR := [ [ address ] PREFIX ]\n");
-	exit(-1);
+	iprt_exit(-1);
 }
 
 /* netlink socket */
@@ -371,9 +371,9 @@ static int tcpm_do_cmd(int cmd, int argc, char **argv)
 
 			NEXT_ARG();
 			if (matches(*argv, "help") == 0)
-				usage();
+				return usage();
 			if (f.saddr.bitlen >= 0)
-				duparg2(who, *argv);
+				return duparg2(who, *argv);
 
 			get_prefix(&f.saddr, *argv, preferred_family);
 			if (f.saddr.bytelen && f.saddr.bytelen * 8 == f.saddr.bitlen) {
@@ -397,9 +397,9 @@ static int tcpm_do_cmd(int cmd, int argc, char **argv)
 				NEXT_ARG();
 			}
 			if (matches(*argv, "help") == 0)
-				usage();
+				return usage();
 			if (f.daddr.bitlen >= 0)
-				duparg2(who, *argv);
+				return duparg2(who, *argv);
 
 			get_prefix(&f.daddr, *argv, preferred_family);
 			if (f.daddr.bytelen && f.daddr.bytelen * 8 == f.daddr.bitlen) {
@@ -418,7 +418,7 @@ static int tcpm_do_cmd(int cmd, int argc, char **argv)
 	}
 
 	if (cmd == CMD_DEL && atype < 0)
-		missarg("address");
+		return missarg("address");
 
 	/* flush for exact address ? Single del */
 	if (cmd == CMD_FLUSH && atype >= 0)
@@ -438,7 +438,7 @@ static int tcpm_do_cmd(int cmd, int argc, char **argv)
 	}
 
 	if (genl_init_handle(&grth, TCP_METRICS_GENL_NAME, &genl_family))
-		exit(1);
+		iprt_exit(1);
 	req.n.nlmsg_type = genl_family;
 
 	if (!(cmd & CMD_FLUSH) && (atype >= 0 || (cmd & CMD_DEL))) {
@@ -467,12 +467,12 @@ static int tcpm_do_cmd(int cmd, int argc, char **argv)
 			req.n.nlmsg_seq = grth.dump = ++grth.seq;
 			if (rtnl_send(&grth, &req, req.n.nlmsg_len) < 0) {
 				perror("Failed to send flush request");
-				exit(1);
+				iprt_exit(1);
 			}
 			f.flushed = 0;
 			if (rtnl_dump_filter(&grth, process_msg, stdout) < 0) {
 				fprintf(stderr, "Flush terminated\n");
-				exit(1);
+				iprt_exit(1);
 			}
 			if (f.flushed == 0) {
 				if (round == 0) {
@@ -485,7 +485,7 @@ static int tcpm_do_cmd(int cmd, int argc, char **argv)
 			}
 			round++;
 			if (flush_update() < 0)
-				exit(1);
+				iprt_exit(1);
 			if (show_stats) {
 				printf("\n*** Round %d, deleting %d entries ***\n",
 				       round, f.flushed);
@@ -503,20 +503,21 @@ static int tcpm_do_cmd(int cmd, int argc, char **argv)
 			return -2;
 		if (process_msg(NULL, answer, stdout) < 0) {
 			fprintf(stderr, "Dump terminated\n");
-			exit(1);
+			iprt_exit(1);
 		}
 		free(answer);
 	} else {
 		req.n.nlmsg_seq = grth.dump = ++grth.seq;
 		if (rtnl_send(&grth, &req, req.n.nlmsg_len) < 0) {
 			perror("Failed to send dump request");
-			exit(1);
+			iprt_exit(1);
 		}
 
-		new_json_obj(json);
+		if (new_json_obj(json))
+			return -1;
 		if (rtnl_dump_filter(&grth, process_msg, stdout) < 0) {
 			fprintf(stderr, "Dump terminated\n");
-			exit(1);
+			iprt_exit(1);
 		}
 		delete_json_obj();
 	}
@@ -534,9 +535,9 @@ int do_tcp_metrics(int argc, char **argv)
 			return tcpm_do_cmd(cmds[i].code, argc-1, argv+1);
 	}
 	if (matches(argv[0], "help") == 0)
-		usage();
+		return usage();
 
 	fprintf(stderr, "Command \"%s\" is unknown, try \"ip tcp_metrics help\".\n",
 			*argv);
-	exit(-1);
+	iprt_exit(-1);
 }

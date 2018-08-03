@@ -41,9 +41,7 @@ static struct
 	const char *name;
 } filter;
 
-static void usage(void) __attribute__((noreturn));
-
-static void usage(void)
+static int usage(void)
 {
 	fprintf(stderr,
 		"Usage: ip ntable change name NAME [ dev DEV ]\n"
@@ -58,7 +56,7 @@ static void usage(void)
 		"         [ locktime MSEC ]\n"
 		);
 
-	exit(-1);
+	iprt_exit(-1);
 }
 
 static int ipntable_modify(int cmd, int flags, int argc, char **argv)
@@ -89,7 +87,7 @@ static int ipntable_modify(int cmd, int flags, int argc, char **argv)
 
 			NEXT_ARG();
 			if (namep)
-				duparg("NAME", *argv);
+				return duparg("NAME", *argv);
 
 			namep = *argv;
 			len = strlen(namep) + 1;
@@ -101,7 +99,7 @@ static int ipntable_modify(int cmd, int flags, int argc, char **argv)
 			threshsp = *argv;
 
 			if (get_u32(&thresh1, *argv, 0))
-				invarg("\"thresh1\" value is invalid", *argv);
+				return invarg("\"thresh1\" value is invalid", *argv);
 
 			addattr32(&req.n, sizeof(req), NDTA_THRESH1, thresh1);
 		} else if (strcmp(*argv, "thresh2") == 0) {
@@ -111,7 +109,7 @@ static int ipntable_modify(int cmd, int flags, int argc, char **argv)
 			threshsp = *argv;
 
 			if (get_u32(&thresh2, *argv, 0))
-				invarg("\"thresh2\" value is invalid", *argv);
+				return invarg("\"thresh2\" value is invalid", *argv);
 
 			addattr32(&req.n, sizeof(req), NDTA_THRESH2, thresh2);
 		} else if (strcmp(*argv, "thresh3") == 0) {
@@ -121,7 +119,7 @@ static int ipntable_modify(int cmd, int flags, int argc, char **argv)
 			threshsp = *argv;
 
 			if (get_u32(&thresh3, *argv, 0))
-				invarg("\"thresh3\" value is invalid", *argv);
+				return invarg("\"thresh3\" value is invalid", *argv);
 
 			addattr32(&req.n, sizeof(req), NDTA_THRESH3, thresh3);
 		} else if (strcmp(*argv, "gc_int") == 0) {
@@ -131,7 +129,7 @@ static int ipntable_modify(int cmd, int flags, int argc, char **argv)
 			gc_intp = *argv;
 
 			if (get_u64(&gc_int, *argv, 0))
-				invarg("\"gc_int\" value is invalid", *argv);
+				return invarg("\"gc_int\" value is invalid", *argv);
 
 			addattr_l(&req.n, sizeof(req), NDTA_GC_INTERVAL,
 				  &gc_int, sizeof(gc_int));
@@ -151,7 +149,7 @@ static int ipntable_modify(int cmd, int flags, int argc, char **argv)
 			NEXT_ARG();
 
 			if (get_u64(&breachable, *argv, 0))
-				invarg("\"base_reachable\" value is invalid", *argv);
+				return invarg("\"base_reachable\" value is invalid", *argv);
 
 			rta_addattr_l(parms_rta, sizeof(parms_buf),
 				      NDTPA_BASE_REACHABLE_TIME,
@@ -163,7 +161,7 @@ static int ipntable_modify(int cmd, int flags, int argc, char **argv)
 			NEXT_ARG();
 
 			if (get_u64(&retrans, *argv, 0))
-				invarg("\"retrans\" value is invalid", *argv);
+				return invarg("\"retrans\" value is invalid", *argv);
 
 			rta_addattr_l(parms_rta, sizeof(parms_buf),
 				      NDTPA_RETRANS_TIME,
@@ -175,7 +173,7 @@ static int ipntable_modify(int cmd, int flags, int argc, char **argv)
 			NEXT_ARG();
 
 			if (get_u64(&gc_stale, *argv, 0))
-				invarg("\"gc_stale\" value is invalid", *argv);
+				return invarg("\"gc_stale\" value is invalid", *argv);
 
 			rta_addattr_l(parms_rta, sizeof(parms_buf),
 				      NDTPA_GC_STALETIME,
@@ -187,7 +185,7 @@ static int ipntable_modify(int cmd, int flags, int argc, char **argv)
 			NEXT_ARG();
 
 			if (get_u64(&delay_probe, *argv, 0))
-				invarg("\"delay_probe\" value is invalid", *argv);
+				return invarg("\"delay_probe\" value is invalid", *argv);
 
 			rta_addattr_l(parms_rta, sizeof(parms_buf),
 				      NDTPA_DELAY_PROBE_TIME,
@@ -199,7 +197,7 @@ static int ipntable_modify(int cmd, int flags, int argc, char **argv)
 			NEXT_ARG();
 
 			if (get_u32(&queue, *argv, 0))
-				invarg("\"queue\" value is invalid", *argv);
+				return invarg("\"queue\" value is invalid", *argv);
 
 			rta_addattr32(parms_rta, sizeof(parms_buf),
 				      NDTPA_QUEUE_LEN, queue);
@@ -210,7 +208,7 @@ static int ipntable_modify(int cmd, int flags, int argc, char **argv)
 			NEXT_ARG();
 
 			if (get_u32(&aprobe, *argv, 0))
-				invarg("\"app_probes\" value is invalid", *argv);
+				return invarg("\"app_probes\" value is invalid", *argv);
 
 			rta_addattr32(parms_rta, sizeof(parms_buf),
 				      NDTPA_APP_PROBES, aprobe);
@@ -221,7 +219,7 @@ static int ipntable_modify(int cmd, int flags, int argc, char **argv)
 			NEXT_ARG();
 
 			if (get_u32(&uprobe, *argv, 0))
-				invarg("\"ucast_probes\" value is invalid", *argv);
+				return invarg("\"ucast_probes\" value is invalid", *argv);
 
 			rta_addattr32(parms_rta, sizeof(parms_buf),
 				      NDTPA_UCAST_PROBES, uprobe);
@@ -232,7 +230,7 @@ static int ipntable_modify(int cmd, int flags, int argc, char **argv)
 			NEXT_ARG();
 
 			if (get_u32(&mprobe, *argv, 0))
-				invarg("\"mcast_probes\" value is invalid", *argv);
+				return invarg("\"mcast_probes\" value is invalid", *argv);
 
 			rta_addattr32(parms_rta, sizeof(parms_buf),
 				      NDTPA_MCAST_PROBES, mprobe);
@@ -243,7 +241,7 @@ static int ipntable_modify(int cmd, int flags, int argc, char **argv)
 			NEXT_ARG();
 
 			if (get_u64(&anycast_delay, *argv, 0))
-				invarg("\"anycast_delay\" value is invalid", *argv);
+				return invarg("\"anycast_delay\" value is invalid", *argv);
 
 			rta_addattr_l(parms_rta, sizeof(parms_buf),
 				      NDTPA_ANYCAST_DELAY,
@@ -255,7 +253,7 @@ static int ipntable_modify(int cmd, int flags, int argc, char **argv)
 			NEXT_ARG();
 
 			if (get_u64(&proxy_delay, *argv, 0))
-				invarg("\"proxy_delay\" value is invalid", *argv);
+				return invarg("\"proxy_delay\" value is invalid", *argv);
 
 			rta_addattr_l(parms_rta, sizeof(parms_buf),
 				      NDTPA_PROXY_DELAY,
@@ -267,7 +265,7 @@ static int ipntable_modify(int cmd, int flags, int argc, char **argv)
 			NEXT_ARG();
 
 			if (get_u32(&pqueue, *argv, 0))
-				invarg("\"proxy_queue\" value is invalid", *argv);
+				return invarg("\"proxy_queue\" value is invalid", *argv);
 
 			rta_addattr32(parms_rta, sizeof(parms_buf),
 				      NDTPA_PROXY_QLEN, pqueue);
@@ -278,24 +276,24 @@ static int ipntable_modify(int cmd, int flags, int argc, char **argv)
 			NEXT_ARG();
 
 			if (get_u64(&locktime, *argv, 0))
-				invarg("\"locktime\" value is invalid", *argv);
+				return invarg("\"locktime\" value is invalid", *argv);
 
 			rta_addattr_l(parms_rta, sizeof(parms_buf),
 				      NDTPA_LOCKTIME,
 				      &locktime, sizeof(locktime));
 			parms_change = 1;
 		} else {
-			invarg("unknown", *argv);
+			return invarg("unknown", *argv);
 		}
 
 		argc--; argv++;
 	}
 
 	if (!namep)
-		missarg("NAME");
+		return missarg("NAME");
 	if (!threshsp && !gc_intp && !parms_change) {
 		fprintf(stderr, "Not enough information: changeable attributes required.\n");
-		exit(-1);
+		iprt_exit(-1);
 	}
 
 	if (parms_rta->rta_len > RTA_LENGTH(0)) {
@@ -304,7 +302,7 @@ static int ipntable_modify(int cmd, int flags, int argc, char **argv)
 	}
 
 	if (rtnl_talk(&rth, &req.n, NULL) < 0)
-		exit(2);
+		iprt_exit(2);
 
 	return 0;
 }
@@ -647,26 +645,27 @@ static int ipntable_show(int argc, char **argv)
 			if (strcmp("none", *argv) == 0)
 				filter.index = NONE_DEV;
 			else if ((filter.index = ll_name_to_index(*argv)) == 0)
-				invarg("\"DEV\" is invalid", *argv);
+				return invarg("\"DEV\" is invalid", *argv);
 		} else if (strcmp(*argv, "name") == 0) {
 			NEXT_ARG();
 
 			filter.name = *argv;
 		} else
-			invarg("unknown", *argv);
+			return invarg("unknown", *argv);
 
 		argc--; argv++;
 	}
 
 	if (rtnl_wilddump_request(&rth, preferred_family, RTM_GETNEIGHTBL) < 0) {
 		perror("Cannot send dump request");
-		exit(1);
+		iprt_exit(1);
 	}
 
-	new_json_obj(json);
+	if (new_json_obj(json))
+		return -1;
 	if (rtnl_dump_filter(&rth, print_ntable, stdout) < 0) {
 		fprintf(stderr, "Dump terminated\n");
-		exit(1);
+		iprt_exit(1);
 	}
 	delete_json_obj();
 
@@ -688,10 +687,10 @@ int do_ipntable(int argc, char **argv)
 		    matches(*argv, "list") == 0)
 			return ipntable_show(argc-1, argv+1);
 		if (matches(*argv, "help") == 0)
-			usage();
+			return usage();
 	} else
 		return ipntable_show(0, NULL);
 
 	fprintf(stderr, "Command \"%s\" is unknown, try \"ip ntable help\".\n", *argv);
-	exit(-1);
+	iprt_exit(-1);
 }

@@ -36,9 +36,7 @@ static const char drv_name[] = "tun";
 
 #define TUNDEV "/dev/net/tun"
 
-static void usage(void) __attribute__((noreturn));
-
-static void usage(void)
+static int usage(void)
 {
 	fprintf(stderr, "Usage: ip tuntap { add | del | show | list | lst | help } [ dev PHYS_DEV ]\n");
 	fprintf(stderr, "          [ mode { tun | tap } ] [ user USER ] [ group GROUP ]\n");
@@ -46,7 +44,7 @@ static void usage(void)
 	fprintf(stderr, "\n");
 	fprintf(stderr, "Where: USER  := { STRING | NUMBER }\n");
 	fprintf(stderr, "       GROUP := { STRING | NUMBER }\n");
-	exit(-1);
+	iprt_exit(-1);
 }
 
 static int tap_add_ioctl(struct ifreq *ifr, uid_t uid, gid_t gid)
@@ -123,18 +121,18 @@ static int parse_args(int argc, char **argv,
 			if (matches(*argv, "tun") == 0) {
 				if (ifr->ifr_flags & IFF_TAP) {
 					fprintf(stderr, "You managed to ask for more than one tunnel mode.\n");
-					exit(-1);
+					iprt_exit(-1);
 				}
 				ifr->ifr_flags |= IFF_TUN;
 			} else if (matches(*argv, "tap") == 0) {
 				if (ifr->ifr_flags & IFF_TUN) {
 					fprintf(stderr, "You managed to ask for more than one tunnel mode.\n");
-					exit(-1);
+					iprt_exit(-1);
 				}
 				ifr->ifr_flags |= IFF_TAP;
 			} else {
 				fprintf(stderr, "Unknown tunnel mode \"%s\"\n", *argv);
-				exit(-1);
+				iprt_exit(-1);
 			}
 		} else if (uid && matches(*argv, "user") == 0) {
 			char *end;
@@ -148,7 +146,7 @@ static int parse_args(int argc, char **argv,
 
 				if (!pw) {
 					fprintf(stderr, "invalid user \"%s\"\n", *argv);
-					exit(-1);
+					iprt_exit(-1);
 				}
 				*uid = pw->pw_uid;
 			}
@@ -165,7 +163,7 @@ static int parse_args(int argc, char **argv,
 
 				if (!gr) {
 					fprintf(stderr, "invalid group \"%s\"\n", *argv);
-					exit(-1);
+					iprt_exit(-1);
 				}
 				*gid = gr->gr_gid;
 			}
@@ -180,16 +178,16 @@ static int parse_args(int argc, char **argv,
 		} else if (matches(*argv, "dev") == 0) {
 			NEXT_ARG();
 			if (get_ifname(ifr->ifr_name, *argv))
-				invarg("\"dev\" not a valid ifname", *argv);
+				return invarg("\"dev\" not a valid ifname", *argv);
 		} else {
 			if (matches(*argv, "name") == 0) {
 				NEXT_ARG();
 			} else if (matches(*argv, "help") == 0)
-				usage();
+				return usage();
 			if (ifr->ifr_name[0])
-				duparg2("name", *argv);
+				return duparg2("name", *argv);
 			if (get_ifname(ifr->ifr_name, *argv))
-				invarg("\"name\" not a valid ifname", *argv);
+				return invarg("\"name\" not a valid ifname", *argv);
 		}
 		count++;
 		argc--; argv++;
@@ -465,7 +463,8 @@ static int do_show(int argc, char **argv)
 		return -1;
 	}
 
-	new_json_obj(json);
+	if (new_json_obj(json))
+		return -1;
 
 	if (rtnl_dump_filter(&rth, print_tuntap, NULL) < 0) {
 		fprintf(stderr, "Dump terminated\n");
@@ -490,13 +489,13 @@ int do_iptuntap(int argc, char **argv)
 		    matches(*argv, "list") == 0)
 			return do_show(argc-1, argv+1);
 		if (matches(*argv, "help") == 0)
-			usage();
+			return usage();
 	} else
 		return do_show(0, NULL);
 
 	fprintf(stderr, "Command \"%s\" is unknown, try \"ip tuntap help\".\n",
 		*argv);
-	exit(-1);
+	iprt_exit(-1);
 }
 
 static void print_owner(FILE *f, uid_t uid)

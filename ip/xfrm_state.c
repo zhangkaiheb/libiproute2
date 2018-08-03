@@ -50,9 +50,7 @@
 #define XFRM_ALGO_KEY_BUF_SIZE 512
 #define CTX_BUF_SIZE 256
 
-static void usage(void) __attribute__((noreturn));
-
-static void usage(void)
+static int usage(void)
 {
 	fprintf(stderr, "Usage: ip xfrm state { add | update } ID [ ALGO-LIST ] [ mode MODE ]\n");
 	fprintf(stderr, "        [ mark MARK [ mask MASK ] ] [ reqid REQID ] [ seq SEQ ]\n");
@@ -111,7 +109,7 @@ static void usage(void)
 	fprintf(stderr, "ENCAP := { espinudp | espinudp-nonike } SPORT DPORT OADDR\n");
 	fprintf(stderr, "DIR := in | out\n");
 
-	exit(-1);
+	iprt_exit(-1);
 }
 
 static int xfrm_algo_parse(struct xfrm_algo *alg, enum xfrm_attr_type_t type,
@@ -142,7 +140,7 @@ static int xfrm_algo_parse(struct xfrm_algo *alg, enum xfrm_attr_type_t type,
 		/* calculate length of the converted values(real key) */
 		len = (plen + 1) / 2;
 		if (len > max)
-			invarg("ALGO-KEYMAT value makes buffer overflow\n", key);
+			return invarg("ALGO-KEYMAT value makes buffer overflow\n", key);
 
 		for (i = -(plen % 2), j = 0; j < len; i += 2, j++) {
 			char vbuf[3];
@@ -153,7 +151,7 @@ static int xfrm_algo_parse(struct xfrm_algo *alg, enum xfrm_attr_type_t type,
 			vbuf[2] = '\0';
 
 			if (get_u8(&val, vbuf, 16))
-				invarg("ALGO-KEYMAT value is invalid", key);
+				return invarg("ALGO-KEYMAT value is invalid", key);
 
 			buf[j] = val;
 		}
@@ -161,7 +159,7 @@ static int xfrm_algo_parse(struct xfrm_algo *alg, enum xfrm_attr_type_t type,
 		len = slen;
 		if (len > 0) {
 			if (len > max)
-				invarg("ALGO-KEYMAT value makes buffer overflow\n", key);
+				return invarg("ALGO-KEYMAT value makes buffer overflow\n", key);
 
 			memcpy(buf, key, len);
 		}
@@ -178,7 +176,7 @@ static int xfrm_seq_parse(__u32 *seq, int *argcp, char ***argvp)
 	char **argv = *argvp;
 
 	if (get_be32(seq, *argv, 0))
-		invarg("SEQ value is invalid", *argv);
+		return invarg("SEQ value is invalid", *argv);
 
 	*argcp = argc;
 	*argvp = argv;
@@ -196,7 +194,7 @@ static int xfrm_state_flag_parse(__u8 *flags, int *argcp, char ***argvp)
 		__u8 val = 0;
 
 		if (get_u8(&val, *argv, 16))
-			invarg("FLAG value is invalid", *argv);
+			return invarg("FLAG value is invalid", *argv);
 		*flags = val;
 	} else {
 		while (1) {
@@ -243,7 +241,7 @@ static int xfrm_state_extra_flag_parse(__u32 *extra_flags, int *argcp, char ***a
 		__u32 val = 0;
 
 		if (get_u32(&val, *argv, 16))
-			invarg("\"EXTRA-FLAG\" is invalid", *argv);
+			return invarg("\"EXTRA-FLAG\" is invalid", *argv);
 		*extra_flags = val;
 	} else {
 		while (1) {
@@ -276,7 +274,7 @@ static int xfrm_offload_dir_parse(__u8 *dir, int *argcp, char ***argvp)
 	else if (strcmp(*argv, "out") == 0)
 		*dir = 0;
 	else
-		invarg("DIR value is invalid", *argv);
+		return invarg("DIR value is invalid", *argv);
 
 	*argcp = argc;
 	*argvp = argv;
@@ -338,23 +336,23 @@ static int xfrm_state_modify(int cmd, unsigned int flags, int argc, char **argv)
 		} else if (strcmp(*argv, "replay-window") == 0) {
 			NEXT_ARG();
 			if (get_u32(&replay_window, *argv, 0))
-				invarg("value after \"replay-window\" is invalid", *argv);
+				return invarg("value after \"replay-window\" is invalid", *argv);
 		} else if (strcmp(*argv, "replay-seq") == 0) {
 			NEXT_ARG();
 			if (get_u32(&seq, *argv, 0))
-				invarg("value after \"replay-seq\" is invalid", *argv);
+				return invarg("value after \"replay-seq\" is invalid", *argv);
 		} else if (strcmp(*argv, "replay-seq-hi") == 0) {
 			NEXT_ARG();
 			if (get_u32(&seq_hi, *argv, 0))
-				invarg("value after \"replay-seq-hi\" is invalid", *argv);
+				return invarg("value after \"replay-seq-hi\" is invalid", *argv);
 		} else if (strcmp(*argv, "replay-oseq") == 0) {
 			NEXT_ARG();
 			if (get_u32(&oseq, *argv, 0))
-				invarg("value after \"replay-oseq\" is invalid", *argv);
+				return invarg("value after \"replay-oseq\" is invalid", *argv);
 		} else if (strcmp(*argv, "replay-oseq-hi") == 0) {
 			NEXT_ARG();
 			if (get_u32(&oseq_hi, *argv, 0))
-				invarg("value after \"replay-oseq-hi\" is invalid", *argv);
+				return invarg("value after \"replay-oseq-hi\" is invalid", *argv);
 		} else if (strcmp(*argv, "flag") == 0) {
 			NEXT_ARG();
 			xfrm_state_flag_parse(&req.xsinfo.flags, &argc, &argv);
@@ -376,10 +374,10 @@ static int xfrm_state_modify(int cmd, unsigned int flags, int argc, char **argv)
 			xfrm_encap_type_parse(&encap.encap_type, &argc, &argv);
 			NEXT_ARG();
 			if (get_be16(&encap.encap_sport, *argv, 0))
-				invarg("SPORT value after \"encap\" is invalid", *argv);
+				return invarg("SPORT value after \"encap\" is invalid", *argv);
 			NEXT_ARG();
 			if (get_be16(&encap.encap_dport, *argv, 0))
-				invarg("DPORT value after \"encap\" is invalid", *argv);
+				return invarg("DPORT value after \"encap\" is invalid", *argv);
 			NEXT_ARG();
 			get_addr(&oa, *argv, AF_UNSPEC);
 			memcpy(&encap.encap_oa, &oa.data, sizeof(encap.encap_oa));
@@ -390,16 +388,16 @@ static int xfrm_state_modify(int cmd, unsigned int flags, int argc, char **argv)
 			xfrm_address_t xcoa = {};
 
 			if (coap)
-				duparg("coa", *argv);
+				return duparg("coa", *argv);
 			coap = *argv;
 
 			NEXT_ARG();
 
 			get_prefix(&coa, *argv, preferred_family);
 			if (coa.family == AF_UNSPEC)
-				invarg("value after \"coa\" has an unrecognized address family", *argv);
+				return invarg("value after \"coa\" has an unrecognized address family", *argv);
 			if (coa.bytelen > sizeof(xcoa))
-				invarg("value after \"coa\" is too large", *argv);
+				return invarg("value after \"coa\" is too large", *argv);
 
 			memcpy(&xcoa, &coa.data, coa.bytelen);
 
@@ -409,7 +407,7 @@ static int xfrm_state_modify(int cmd, unsigned int flags, int argc, char **argv)
 			char *context;
 
 			if (sctxp)
-				duparg("ctx", *argv);
+				return duparg("ctx", *argv);
 			sctxp = *argv;
 
 			NEXT_ARG();
@@ -425,7 +423,7 @@ static int xfrm_state_modify(int cmd, unsigned int flags, int argc, char **argv)
 				NEXT_ARG();
 				ifindex = ll_name_to_index(*argv);
 				if (!ifindex) {
-					invarg("value after \"offload dev\" is invalid", *argv);
+					return invarg("value after \"offload dev\" is invalid", *argv);
 					is_offload = false;
 				}
 				NEXT_ARG();
@@ -434,7 +432,7 @@ static int xfrm_state_modify(int cmd, unsigned int flags, int argc, char **argv)
 				NEXT_ARG();
 				xfrm_offload_dir_parse(&dir, &argc, &argv);
 			} else {
-				invarg("value after \"offload dir\" is invalid", *argv);
+				return invarg("value after \"offload dir\" is invalid", *argv);
 				is_offload = false;
 			}
 		} else {
@@ -466,32 +464,32 @@ static int xfrm_state_modify(int cmd, unsigned int flags, int argc, char **argv)
 				switch (type) {
 				case XFRMA_ALG_AEAD:
 					if (ealgop || aalgop || aeadop)
-						duparg("ALGO-TYPE", *argv);
+						return duparg("ALGO-TYPE", *argv);
 					aeadop = *argv;
 					break;
 				case XFRMA_ALG_CRYPT:
 					if (ealgop || aeadop)
-						duparg("ALGO-TYPE", *argv);
+						return duparg("ALGO-TYPE", *argv);
 					ealgop = *argv;
 					break;
 				case XFRMA_ALG_AUTH:
 				case XFRMA_ALG_AUTH_TRUNC:
 					if (aalgop || aeadop)
-						duparg("ALGO-TYPE", *argv);
+						return duparg("ALGO-TYPE", *argv);
 					aalgop = *argv;
 					break;
 				case XFRMA_ALG_COMP:
 					if (calgop)
-						duparg("ALGO-TYPE", *argv);
+						return duparg("ALGO-TYPE", *argv);
 					calgop = *argv;
 					break;
 				default:
 					/* not reached */
-					invarg("ALGO-TYPE value is invalid\n", *argv);
+					return invarg("ALGO-TYPE value is invalid\n", *argv);
 				}
 
 				if (!NEXT_ARG_OK())
-					missarg("ALGO-NAME");
+					return missarg("ALGO-NAME");
 				NEXT_ARG();
 				name = *argv;
 
@@ -501,7 +499,7 @@ static int xfrm_state_modify(int cmd, unsigned int flags, int argc, char **argv)
 				case XFRMA_ALG_AUTH:
 				case XFRMA_ALG_AUTH_TRUNC:
 					if (!NEXT_ARG_OK())
-						missarg("ALGO-KEYMAT");
+						return missarg("ALGO-KEYMAT");
 					NEXT_ARG();
 					key = *argv;
 					break;
@@ -513,10 +511,10 @@ static int xfrm_state_modify(int cmd, unsigned int flags, int argc, char **argv)
 				switch (type) {
 				case XFRMA_ALG_AEAD:
 					if (!NEXT_ARG_OK())
-						missarg("ALGO-ICV-LEN");
+						return missarg("ALGO-ICV-LEN");
 					NEXT_ARG();
 					if (get_u32(&icvlen, *argv, 0))
-						invarg("ALGO-ICV-LEN value is invalid",
+						return invarg("ALGO-ICV-LEN value is invalid",
 						       *argv);
 					alg.u.aead.alg_icv_len = icvlen;
 
@@ -525,10 +523,10 @@ static int xfrm_state_modify(int cmd, unsigned int flags, int argc, char **argv)
 					break;
 				case XFRMA_ALG_AUTH_TRUNC:
 					if (!NEXT_ARG_OK())
-						missarg("ALGO-TRUNC-LEN");
+						return missarg("ALGO-TRUNC-LEN");
 					NEXT_ARG();
 					if (get_u32(&trunclen, *argv, 0))
-						invarg("ALGO-TRUNC-LEN value is invalid",
+						return invarg("ALGO-TRUNC-LEN value is invalid",
 						       *argv);
 					alg.u.auth.alg_trunc_len = trunclen;
 
@@ -548,7 +546,7 @@ static int xfrm_state_modify(int cmd, unsigned int flags, int argc, char **argv)
 			default:
 				/* try to assume ID */
 				if (idp)
-					invarg("unknown", *argv);
+					return invarg("unknown", *argv);
 				idp = *argv;
 
 				/* ID */
@@ -564,14 +562,14 @@ static int xfrm_state_modify(int cmd, unsigned int flags, int argc, char **argv)
 	if (req.xsinfo.flags & XFRM_STATE_ESN &&
 	    replay_window == 0) {
 		fprintf(stderr, "Error: esn flag set without replay-window.\n");
-		exit(-1);
+		iprt_exit(-1);
 	}
 
 	if (replay_window > XFRMA_REPLAY_ESN_MAX) {
 		fprintf(stderr,
 			"Error: replay-window (%u) > XFRMA_REPLAY_ESN_MAX (%u).\n",
 			replay_window, XFRMA_REPLAY_ESN_MAX);
-		exit(-1);
+		iprt_exit(-1);
 	}
 
 	if (is_offload) {
@@ -607,7 +605,7 @@ static int xfrm_state_modify(int cmd, unsigned int flags, int argc, char **argv)
 
 	if (!idp) {
 		fprintf(stderr, "Not enough information: ID is required\n");
-		exit(1);
+		iprt_exit(1);
 	}
 
 	if (mark.m) {
@@ -615,7 +613,7 @@ static int xfrm_state_modify(int cmd, unsigned int flags, int argc, char **argv)
 				  (void *)&mark, sizeof(mark));
 		if (r < 0) {
 			fprintf(stderr, "XFRMA_MARK failed\n");
-			exit(1);
+			iprt_exit(1);
 		}
 	}
 
@@ -630,7 +628,7 @@ static int xfrm_state_modify(int cmd, unsigned int flags, int argc, char **argv)
 		default:
 			fprintf(stderr, "MODE value is invalid with XFRM-PROTO value \"%s\"\n",
 				strxf_xfrmproto(req.xsinfo.id.proto));
-			exit(1);
+			iprt_exit(1);
 		}
 
 		switch (req.xsinfo.id.proto) {
@@ -639,14 +637,14 @@ static int xfrm_state_modify(int cmd, unsigned int flags, int argc, char **argv)
 				fprintf(stderr, "ALGO-TYPE value \"%s\" is invalid with XFRM-PROTO value \"%s\"\n",
 					strxf_algotype(XFRMA_ALG_COMP),
 					strxf_xfrmproto(req.xsinfo.id.proto));
-				exit(1);
+				iprt_exit(1);
 			}
 			if (!ealgop && !aeadop) {
 				fprintf(stderr, "ALGO-TYPE value \"%s\" or \"%s\" is required with XFRM-PROTO value \"%s\"\n",
 					strxf_algotype(XFRMA_ALG_CRYPT),
 					strxf_algotype(XFRMA_ALG_AEAD),
 					strxf_xfrmproto(req.xsinfo.id.proto));
-				exit(1);
+				iprt_exit(1);
 			}
 			break;
 		case IPPROTO_AH:
@@ -656,14 +654,14 @@ static int xfrm_state_modify(int cmd, unsigned int flags, int argc, char **argv)
 					strxf_algotype(XFRMA_ALG_AEAD),
 					strxf_algotype(XFRMA_ALG_COMP),
 					strxf_xfrmproto(req.xsinfo.id.proto));
-				exit(1);
+				iprt_exit(1);
 			}
 			if (!aalgop) {
 				fprintf(stderr, "ALGO-TYPE value \"%s\" or \"%s\" is required with XFRM-PROTO value \"%s\"\n",
 					strxf_algotype(XFRMA_ALG_AUTH),
 					strxf_algotype(XFRMA_ALG_AUTH_TRUNC),
 					strxf_xfrmproto(req.xsinfo.id.proto));
-				exit(1);
+				iprt_exit(1);
 			}
 			break;
 		case IPPROTO_COMP:
@@ -674,13 +672,13 @@ static int xfrm_state_modify(int cmd, unsigned int flags, int argc, char **argv)
 					strxf_algotype(XFRMA_ALG_AUTH_TRUNC),
 					strxf_algotype(XFRMA_ALG_AEAD),
 					strxf_xfrmproto(req.xsinfo.id.proto));
-				exit(1);
+				iprt_exit(1);
 			}
 			if (!calgop) {
 				fprintf(stderr, "ALGO-TYPE value \"%s\" is required with XFRM-PROTO value \"%s\"\n",
 					strxf_algotype(XFRMA_ALG_COMP),
 					strxf_xfrmproto(req.xsinfo.id.proto));
-				exit(1);
+				iprt_exit(1);
 			}
 			break;
 		}
@@ -688,7 +686,7 @@ static int xfrm_state_modify(int cmd, unsigned int flags, int argc, char **argv)
 		if (ealgop || aalgop || aeadop || calgop) {
 			fprintf(stderr, "ALGO is invalid with XFRM-PROTO value \"%s\"\n",
 				strxf_xfrmproto(req.xsinfo.id.proto));
-			exit(1);
+			iprt_exit(1);
 		}
 	}
 
@@ -700,34 +698,34 @@ static int xfrm_state_modify(int cmd, unsigned int flags, int argc, char **argv)
 		case 0:
 			fprintf(stderr, "\"mode\" is required with XFRM-PROTO value \"%s\"\n",
 				strxf_xfrmproto(req.xsinfo.id.proto));
-			exit(1);
+			iprt_exit(1);
 		default:
 			fprintf(stderr, "MODE value is invalid with XFRM-PROTO value \"%s\"\n",
 				strxf_xfrmproto(req.xsinfo.id.proto));
-			exit(1);
+			iprt_exit(1);
 		}
 
 		if (!coap) {
 			fprintf(stderr, "\"coa\" is required with XFRM-PROTO value \"%s\"\n",
 				strxf_xfrmproto(req.xsinfo.id.proto));
-			exit(1);
+			iprt_exit(1);
 		}
 	} else {
 		if (coap) {
 			fprintf(stderr, "\"coa\" is invalid with XFRM-PROTO value \"%s\"\n",
 				strxf_xfrmproto(req.xsinfo.id.proto));
-			exit(1);
+			iprt_exit(1);
 		}
 	}
 
 	if (rtnl_open_byproto(&rth, 0, NETLINK_XFRM) < 0)
-		exit(1);
+		iprt_exit(1);
 
 	if (req.xsinfo.family == AF_UNSPEC)
 		req.xsinfo.family = AF_INET;
 
 	if (rtnl_talk(&rth, &req.n, NULL) < 0)
-		exit(2);
+		iprt_exit(2);
 
 	rtnl_close(&rth);
 
@@ -773,26 +771,26 @@ static int xfrm_state_allocspi(int argc, char **argv)
 			xfrm_seq_parse(&req.xspi.info.seq, &argc, &argv);
 		} else if (strcmp(*argv, "min") == 0) {
 			if (minp)
-				duparg("min", *argv);
+				return duparg("min", *argv);
 			minp = *argv;
 
 			NEXT_ARG();
 
 			if (get_u32(&req.xspi.min, *argv, 0))
-				invarg("value after \"min\" is invalid", *argv);
+				return invarg("value after \"min\" is invalid", *argv);
 		} else if (strcmp(*argv, "max") == 0) {
 			if (maxp)
-				duparg("max", *argv);
+				return duparg("max", *argv);
 			maxp = *argv;
 
 			NEXT_ARG();
 
 			if (get_u32(&req.xspi.max, *argv, 0))
-				invarg("value after \"max\" is invalid", *argv);
+				return invarg("value after \"max\" is invalid", *argv);
 		} else {
 			/* try to assume ID */
 			if (idp)
-				invarg("unknown", *argv);
+				return invarg("unknown", *argv);
 			idp = *argv;
 
 			/* ID */
@@ -800,7 +798,7 @@ static int xfrm_state_allocspi(int argc, char **argv)
 				      &req.xspi.info.family, 0, &argc, &argv);
 			if (req.xspi.info.id.spi) {
 				fprintf(stderr, "\"spi\" is invalid\n");
-				exit(1);
+				iprt_exit(1);
 			}
 			if (preferred_family == AF_UNSPEC)
 				preferred_family = req.xspi.info.family;
@@ -810,22 +808,22 @@ static int xfrm_state_allocspi(int argc, char **argv)
 
 	if (!idp) {
 		fprintf(stderr, "Not enough information: ID is required\n");
-		exit(1);
+		iprt_exit(1);
 	}
 
 	if (minp) {
 		if (!maxp) {
 			fprintf(stderr, "\"max\" is missing\n");
-			exit(1);
+			iprt_exit(1);
 		}
 		if (req.xspi.min > req.xspi.max) {
 			fprintf(stderr, "value after \"min\" is larger than value after \"max\"\n");
-			exit(1);
+			iprt_exit(1);
 		}
 	} else {
 		if (maxp) {
 			fprintf(stderr, "\"min\" is missing\n");
-			exit(1);
+			iprt_exit(1);
 		}
 
 		/* XXX: Default value defined in PF_KEY;
@@ -846,23 +844,23 @@ static int xfrm_state_allocspi(int argc, char **argv)
 				  (void *)&mark, sizeof(mark));
 		if (r < 0) {
 			fprintf(stderr, "XFRMA_MARK failed\n");
-			exit(1);
+			iprt_exit(1);
 		}
 	}
 
 	if (rtnl_open_byproto(&rth, 0, NETLINK_XFRM) < 0)
-		exit(1);
+		iprt_exit(1);
 
 	if (req.xspi.info.family == AF_UNSPEC)
 		req.xspi.info.family = AF_INET;
 
 
 	if (rtnl_talk(&rth, &req.n, &answer) < 0)
-		exit(2);
+		iprt_exit(2);
 
 	if (xfrm_state_print(NULL, answer, (void *)stdout) < 0) {
 		fprintf(stderr, "An error :-)\n");
-		exit(1);
+		iprt_exit(1);
 	}
 
 	free(answer);
@@ -1010,7 +1008,7 @@ static int xfrm_state_get_or_delete(int argc, char **argv, int delete)
 			xfrm_parse_mark(&mark, &argc, &argv);
 		} else {
 			if (idp)
-				invarg("unknown", *argv);
+				return invarg("unknown", *argv);
 			idp = *argv;
 
 			/* ID */
@@ -1035,28 +1033,28 @@ static int xfrm_state_get_or_delete(int argc, char **argv, int delete)
 				  (void *)&mark, sizeof(mark));
 		if (r < 0) {
 			fprintf(stderr, "XFRMA_MARK failed\n");
-			exit(1);
+			iprt_exit(1);
 		}
 	}
 
 	if (rtnl_open_byproto(&rth, 0, NETLINK_XFRM) < 0)
-		exit(1);
+		iprt_exit(1);
 
 	if (req.xsid.family == AF_UNSPEC)
 		req.xsid.family = AF_INET;
 
 	if (delete) {
 		if (rtnl_talk(&rth, &req.n, NULL) < 0)
-			exit(2);
+			iprt_exit(2);
 	} else {
 		struct nlmsghdr *answer;
 
 		if (rtnl_talk(&rth, &req.n, &answer) < 0)
-			exit(2);
+			iprt_exit(2);
 
 		if (xfrm_state_print(NULL, answer, (void *)stdout) < 0) {
 			fprintf(stderr, "An error :-)\n");
-			exit(1);
+			iprt_exit(1);
 		}
 
 		free(answer);
@@ -1125,7 +1123,7 @@ static int xfrm_state_keep(const struct sockaddr_nl *who,
 				(void *)RTA_DATA(tb[XFRMA_MARK]), tb[XFRMA_MARK]->rta_len);
 		if (r < 0) {
 			fprintf(stderr, "%s: XFRMA_MARK failed\n", __func__);
-			exit(1);
+			iprt_exit(1);
 		}
 	}
 
@@ -1165,7 +1163,7 @@ static int xfrm_state_list_or_deleteall(int argc, char **argv, int deleteall)
 
 		} else {
 			if (idp)
-				invarg("unknown", *argv);
+				return invarg("unknown", *argv);
 			idp = *argv;
 
 			/* ID */
@@ -1178,7 +1176,7 @@ static int xfrm_state_list_or_deleteall(int argc, char **argv, int deleteall)
 	}
 
 	if (rtnl_open_byproto(&rth, 0, NETLINK_XFRM) < 0)
-		exit(1);
+		iprt_exit(1);
 
 	if (deleteall) {
 		struct xfrm_buffer xb;
@@ -1208,12 +1206,12 @@ static int xfrm_state_list_or_deleteall(int argc, char **argv, int deleteall)
 
 			if (rtnl_send(&rth, (void *)&req, req.n.nlmsg_len) < 0) {
 				perror("Cannot send dump request");
-				exit(1);
+				iprt_exit(1);
 			}
 
 			if (rtnl_dump_filter(&rth, xfrm_state_keep, &xb) < 0) {
 				fprintf(stderr, "Delete-all terminated\n");
-				exit(1);
+				iprt_exit(1);
 			}
 			if (xb.nlmsg_count == 0) {
 				if (show_stats > 1)
@@ -1223,7 +1221,7 @@ static int xfrm_state_list_or_deleteall(int argc, char **argv, int deleteall)
 
 			if (rtnl_send_check(&rth, xb.buf, xb.offset) < 0) {
 				perror("Failed to send delete-all request\n");
-				exit(1);
+				iprt_exit(1);
 			}
 			if (show_stats > 1)
 				fprintf(stderr, "Delete-all nlmsg count = %d\n", xb.nlmsg_count);
@@ -1258,18 +1256,18 @@ static int xfrm_state_list_or_deleteall(int argc, char **argv, int deleteall)
 
 		if (rtnl_send(&rth, (void *)&req, req.n.nlmsg_len) < 0) {
 			perror("Cannot send dump request");
-			exit(1);
+			iprt_exit(1);
 		}
 
 		if (rtnl_dump_filter(&rth, xfrm_state_print, stdout) < 0) {
 			fprintf(stderr, "Dump terminated\n");
-			exit(1);
+			iprt_exit(1);
 		}
 	}
 
 	rtnl_close(&rth);
 
-	exit(0);
+	iprt_exit(0);
 }
 
 static int print_sadinfo(struct nlmsghdr *n, void *arg)
@@ -1336,10 +1334,10 @@ static int xfrm_sad_getinfo(int argc, char **argv)
 	struct nlmsghdr *answer;
 
 	if (rtnl_open_byproto(&rth, 0, NETLINK_XFRM) < 0)
-		exit(1);
+		iprt_exit(1);
 
 	if (rtnl_talk(&rth, &req.n, &answer) < 0)
-		exit(2);
+		iprt_exit(2);
 
 	print_sadinfo(answer, (void *)stdout);
 
@@ -1367,31 +1365,31 @@ static int xfrm_state_flush(int argc, char **argv)
 			int ret;
 
 			if (protop)
-				duparg("proto", *argv);
+				return duparg("proto", *argv);
 			protop = *argv;
 
 			NEXT_ARG();
 
 			ret = xfrm_xfrmproto_getbyname(*argv);
 			if (ret < 0)
-				invarg("XFRM-PROTO value is invalid", *argv);
+				return invarg("XFRM-PROTO value is invalid", *argv);
 
 			req.xsf.proto = (__u8)ret;
 		} else
-			invarg("unknown", *argv);
+			return invarg("unknown", *argv);
 
 		argc--; argv++;
 	}
 
 	if (rtnl_open_byproto(&rth, 0, NETLINK_XFRM) < 0)
-		exit(1);
+		iprt_exit(1);
 
 	if (show_stats > 1)
 		fprintf(stderr, "Flush state with XFRM-PROTO value \"%s\"\n",
 			strxf_xfrmproto(req.xsf.proto));
 
 	if (rtnl_talk(&rth, &req.n, NULL) < 0)
-		exit(2);
+		iprt_exit(2);
 
 	rtnl_close(&rth);
 
@@ -1426,7 +1424,7 @@ int do_xfrm_state(int argc, char **argv)
 		return xfrm_sad_getinfo(argc, argv);
 	}
 	if (matches(*argv, "help") == 0)
-		usage();
+		return usage();
 	fprintf(stderr, "Command \"%s\" is unknown, try \"ip xfrm state help\".\n", *argv);
-	exit(-1);
+	iprt_exit(-1);
 }

@@ -48,9 +48,7 @@
 #define XFRM_TMPLS_BUF_SIZE 1024
 #define CTX_BUF_SIZE 256
 
-static void usage(void) __attribute__((noreturn));
-
-static void usage(void)
+static int usage(void)
 {
 	fprintf(stderr, "Usage: ip xfrm policy { add | update } SELECTOR dir DIR [ ctx CTX ]\n");
 	fprintf(stderr, "        [ mark MARK [ mask MASK ] ] [ index INDEX ] [ ptype PTYPE ]\n");
@@ -98,7 +96,7 @@ static void usage(void)
 	fprintf(stderr, "MODE := transport | tunnel | beet | ro | in_trigger\n");
 	fprintf(stderr, "LEVEL := required | use\n");
 
-	exit(-1);
+	iprt_exit(-1);
 }
 
 static int xfrm_policy_dir_parse(__u8 *dir, int *argcp, char ***argvp)
@@ -113,7 +111,7 @@ static int xfrm_policy_dir_parse(__u8 *dir, int *argcp, char ***argvp)
 	else if (strcmp(*argv, "fwd") == 0)
 		*dir = XFRM_POLICY_FWD;
 	else
-		invarg("DIR value is invalid", *argv);
+		return invarg("DIR value is invalid", *argv);
 
 	*argcp = argc;
 	*argvp = argv;
@@ -131,7 +129,7 @@ static int xfrm_policy_ptype_parse(__u8 *ptype, int *argcp, char ***argvp)
 	else if (strcmp(*argv, "sub") == 0)
 		*ptype = XFRM_POLICY_TYPE_SUB;
 	else
-		invarg("PTYPE value is invalid", *argv);
+		return invarg("PTYPE value is invalid", *argv);
 
 	*argcp = argc;
 	*argvp = argv;
@@ -149,7 +147,7 @@ static int xfrm_policy_flag_parse(__u8 *flags, int *argcp, char ***argvp)
 		__u8 val = 0;
 
 		if (get_u8(&val, *argv, 16))
-			invarg("FLAG value is invalid", *argv);
+			return invarg("FLAG value is invalid", *argv);
 		*flags = val;
 	} else {
 		while (1) {
@@ -196,7 +194,7 @@ static int xfrm_tmpl_parse(struct xfrm_user_tmpl *tmpl,
 			else if (strcmp(*argv, "use") == 0)
 				tmpl->optional = 1;
 			else
-				invarg("LEVEL value is invalid\n", *argv);
+				return invarg("LEVEL value is invalid\n", *argv);
 
 		} else {
 			if (idp) {
@@ -216,7 +214,7 @@ static int xfrm_tmpl_parse(struct xfrm_user_tmpl *tmpl,
 		NEXT_ARG();
 	}
 	if (argc == *argcp)
-		missarg("TMPL");
+		return missarg("TMPL");
 
 	*argcp = argc;
 	*argvp = argv;
@@ -274,7 +272,7 @@ static int xfrm_policy_modify(int cmd, unsigned int flags, int argc, char **argv
 	while (argc > 0) {
 		if (strcmp(*argv, "dir") == 0) {
 			if (dirp)
-				duparg("dir", *argv);
+				return duparg("dir", *argv);
 			dirp = *argv;
 
 			NEXT_ARG();
@@ -283,7 +281,7 @@ static int xfrm_policy_modify(int cmd, unsigned int flags, int argc, char **argv
 			char *context;
 
 			if (sctxp)
-				duparg("ctx", *argv);
+				return duparg("ctx", *argv);
 			sctxp = *argv;
 			NEXT_ARG();
 			context = *argv;
@@ -293,10 +291,10 @@ static int xfrm_policy_modify(int cmd, unsigned int flags, int argc, char **argv
 		} else if (strcmp(*argv, "index") == 0) {
 			NEXT_ARG();
 			if (get_u32(&req.xpinfo.index, *argv, 0))
-				invarg("INDEX value is invalid", *argv);
+				return invarg("INDEX value is invalid", *argv);
 		} else if (strcmp(*argv, "ptype") == 0) {
 			if (ptypep)
-				duparg("ptype", *argv);
+				return duparg("ptype", *argv);
 			ptypep = *argv;
 
 			NEXT_ARG();
@@ -308,11 +306,11 @@ static int xfrm_policy_modify(int cmd, unsigned int flags, int argc, char **argv
 			else if (strcmp(*argv, "block") == 0)
 				req.xpinfo.action = XFRM_POLICY_BLOCK;
 			else
-				invarg("ACTION value is invalid\n", *argv);
+				return invarg("ACTION value is invalid\n", *argv);
 		} else if (strcmp(*argv, "priority") == 0) {
 			NEXT_ARG();
 			if (get_u32(&req.xpinfo.priority, *argv, 0))
-				invarg("PRIORITY value is invalid", *argv);
+				return invarg("PRIORITY value is invalid", *argv);
 		} else if (strcmp(*argv, "flag") == 0) {
 			NEXT_ARG();
 			xfrm_policy_flag_parse(&req.xpinfo.flags, &argc,
@@ -325,7 +323,7 @@ static int xfrm_policy_modify(int cmd, unsigned int flags, int argc, char **argv
 
 			if (tmpls_len + sizeof(*tmpl) > sizeof(tmpls_buf)) {
 				fprintf(stderr, "Too many tmpls: buffer overflow\n");
-				exit(1);
+				iprt_exit(1);
 			}
 			tmpl = (struct xfrm_user_tmpl *)((char *)tmpls_buf + tmpls_len);
 
@@ -340,7 +338,7 @@ static int xfrm_policy_modify(int cmd, unsigned int flags, int argc, char **argv
 			tmpls_len += sizeof(*tmpl);
 		} else {
 			if (selp)
-				duparg("unknown", *argv);
+				return duparg("unknown", *argv);
 			selp = *argv;
 
 			xfrm_selector_parse(&req.xpinfo.sel, &argc, &argv);
@@ -353,7 +351,7 @@ static int xfrm_policy_modify(int cmd, unsigned int flags, int argc, char **argv
 
 	if (!dirp) {
 		fprintf(stderr, "Not enough information: DIR is required.\n");
-		exit(1);
+		iprt_exit(1);
 	}
 
 	if (ptypep) {
@@ -371,7 +369,7 @@ static int xfrm_policy_modify(int cmd, unsigned int flags, int argc, char **argv
 				  (void *)&mark, sizeof(mark));
 		if (r < 0) {
 			fprintf(stderr, "%s: XFRMA_MARK failed\n", __func__);
-			exit(1);
+			iprt_exit(1);
 		}
 	}
 
@@ -381,13 +379,13 @@ static int xfrm_policy_modify(int cmd, unsigned int flags, int argc, char **argv
 	}
 
 	if (rtnl_open_byproto(&rth, 0, NETLINK_XFRM) < 0)
-		exit(1);
+		iprt_exit(1);
 
 	if (req.xpinfo.sel.family == AF_UNSPEC)
 		req.xpinfo.sel.family = AF_INET;
 
 	if (rtnl_talk(&rth, &req.n, NULL) < 0)
-		exit(2);
+		iprt_exit(2);
 
 	rtnl_close(&rth);
 
@@ -579,7 +577,7 @@ static int xfrm_policy_get_or_delete(int argc, char **argv, int delete,
 	while (argc > 0) {
 		if (strcmp(*argv, "dir") == 0) {
 			if (dirp)
-				duparg("dir", *argv);
+				return duparg("dir", *argv);
 			dirp = *argv;
 
 			NEXT_ARG();
@@ -589,7 +587,7 @@ static int xfrm_policy_get_or_delete(int argc, char **argv, int delete,
 			char *context;
 
 			if (sctxp)
-				duparg("ctx", *argv);
+				return duparg("ctx", *argv);
 			sctxp = *argv;
 			NEXT_ARG();
 			context = *argv;
@@ -598,16 +596,16 @@ static int xfrm_policy_get_or_delete(int argc, char **argv, int delete,
 			xfrm_parse_mark(&mark, &argc, &argv);
 		} else if (strcmp(*argv, "index") == 0) {
 			if (indexp)
-				duparg("index", *argv);
+				return duparg("index", *argv);
 			indexp = *argv;
 
 			NEXT_ARG();
 			if (get_u32(&req.xpid.index, *argv, 0))
-				invarg("INDEX value is invalid", *argv);
+				return invarg("INDEX value is invalid", *argv);
 
 		} else if (strcmp(*argv, "ptype") == 0) {
 			if (ptypep)
-				duparg("ptype", *argv);
+				return duparg("ptype", *argv);
 			ptypep = *argv;
 
 			NEXT_ARG();
@@ -615,7 +613,7 @@ static int xfrm_policy_get_or_delete(int argc, char **argv, int delete,
 
 		} else {
 			if (selp)
-				invarg("unknown", *argv);
+				return invarg("unknown", *argv);
 			selp = *argv;
 
 			xfrm_selector_parse(&req.xpid.sel, &argc, &argv);
@@ -629,7 +627,7 @@ static int xfrm_policy_get_or_delete(int argc, char **argv, int delete,
 
 	if (!dirp) {
 		fprintf(stderr, "Not enough information: DIR is required.\n");
-		exit(1);
+		iprt_exit(1);
 	}
 	if (ptypep) {
 		addattr_l(&req.n, sizeof(req), XFRMA_POLICY_TYPE,
@@ -637,13 +635,13 @@ static int xfrm_policy_get_or_delete(int argc, char **argv, int delete,
 	}
 	if (!selp && !indexp) {
 		fprintf(stderr, "Not enough information: either SELECTOR or INDEX is required.\n");
-		exit(1);
+		iprt_exit(1);
 	}
 	if (selp && indexp)
-		duparg2("SELECTOR", "INDEX");
+		return duparg2("SELECTOR", "INDEX");
 
 	if (rtnl_open_byproto(&rth, 0, NETLINK_XFRM) < 0)
-		exit(1);
+		iprt_exit(1);
 
 	if (req.xpid.sel.family == AF_UNSPEC)
 		req.xpid.sel.family = AF_INET;
@@ -653,7 +651,7 @@ static int xfrm_policy_get_or_delete(int argc, char **argv, int delete,
 				  (void *)&mark, sizeof(mark));
 		if (r < 0) {
 			fprintf(stderr, "%s: XFRMA_MARK failed\n", __func__);
-			exit(1);
+			iprt_exit(1);
 		}
 	}
 
@@ -663,7 +661,7 @@ static int xfrm_policy_get_or_delete(int argc, char **argv, int delete,
 	}
 
 	if (rtnl_talk(&rth, &req.n, answer) < 0)
-		exit(2);
+		iprt_exit(2);
 
 	rtnl_close(&rth);
 
@@ -683,7 +681,7 @@ static int xfrm_policy_get(int argc, char **argv)
 
 	if (xfrm_policy_print(NULL, n, (void *)stdout) < 0) {
 		fprintf(stderr, "An error :-)\n");
-		exit(1);
+		iprt_exit(1);
 	}
 
 	free(n);
@@ -758,7 +756,7 @@ static int xfrm_policy_keep(const struct sockaddr_nl *who,
 				(void *)RTA_DATA(tb[XFRMA_MARK]), tb[XFRMA_MARK]->rta_len);
 		if (r < 0) {
 			fprintf(stderr, "%s: XFRMA_MARK failed\n", __func__);
-			exit(1);
+			iprt_exit(1);
 		}
 	}
 
@@ -787,7 +785,7 @@ static int xfrm_policy_list_or_deleteall(int argc, char **argv, int deleteall)
 		} else if (strcmp(*argv, "index") == 0) {
 			NEXT_ARG();
 			if (get_u32(&filter.xpinfo.index, *argv, 0))
-				invarg("INDEX value is invalid", *argv);
+				return invarg("INDEX value is invalid", *argv);
 
 			filter.index_mask = XFRM_FILTER_MASK_FULL;
 
@@ -804,14 +802,14 @@ static int xfrm_policy_list_or_deleteall(int argc, char **argv, int deleteall)
 			else if (strcmp(*argv, "block") == 0)
 				filter.xpinfo.action = XFRM_POLICY_BLOCK;
 			else
-				invarg("ACTION value is invalid\n", *argv);
+				return invarg("ACTION value is invalid\n", *argv);
 
 			filter.action_mask = XFRM_FILTER_MASK_FULL;
 
 		} else if (strcmp(*argv, "priority") == 0) {
 			NEXT_ARG();
 			if (get_u32(&filter.xpinfo.priority, *argv, 0))
-				invarg("PRIORITY value is invalid", *argv);
+				return invarg("PRIORITY value is invalid", *argv);
 
 			filter.priority_mask = XFRM_FILTER_MASK_FULL;
 
@@ -827,7 +825,7 @@ static int xfrm_policy_list_or_deleteall(int argc, char **argv, int deleteall)
 			filter.filter_socket = 1;
 		} else {
 			if (selp)
-				invarg("unknown", *argv);
+				return invarg("unknown", *argv);
 			selp = *argv;
 
 			xfrm_selector_parse(&filter.xpinfo.sel, &argc, &argv);
@@ -840,7 +838,7 @@ static int xfrm_policy_list_or_deleteall(int argc, char **argv, int deleteall)
 	}
 
 	if (rtnl_open_byproto(&rth, 0, NETLINK_XFRM) < 0)
-		exit(1);
+		iprt_exit(1);
 
 	if (deleteall) {
 		struct xfrm_buffer xb;
@@ -870,12 +868,12 @@ static int xfrm_policy_list_or_deleteall(int argc, char **argv, int deleteall)
 
 			if (rtnl_send(&rth, (void *)&req, req.n.nlmsg_len) < 0) {
 				perror("Cannot send dump request");
-				exit(1);
+				iprt_exit(1);
 			}
 
 			if (rtnl_dump_filter(&rth, xfrm_policy_keep, &xb) < 0) {
 				fprintf(stderr, "Delete-all terminated\n");
-				exit(1);
+				iprt_exit(1);
 			}
 			if (xb.nlmsg_count == 0) {
 				if (show_stats > 1)
@@ -885,7 +883,7 @@ static int xfrm_policy_list_or_deleteall(int argc, char **argv, int deleteall)
 
 			if (rtnl_send_check(&rth, xb.buf, xb.offset) < 0) {
 				perror("Failed to send delete-all request");
-				exit(1);
+				iprt_exit(1);
 			}
 			if (show_stats > 1)
 				fprintf(stderr, "Delete-all nlmsg count = %d\n", xb.nlmsg_count);
@@ -906,18 +904,18 @@ static int xfrm_policy_list_or_deleteall(int argc, char **argv, int deleteall)
 
 		if (rtnl_send(&rth, (void *)&req, req.n.nlmsg_len) < 0) {
 			perror("Cannot send dump request");
-			exit(1);
+			iprt_exit(1);
 		}
 
 		if (rtnl_dump_filter(&rth, xfrm_policy_print, stdout) < 0) {
 			fprintf(stderr, "Dump terminated\n");
-			exit(1);
+			iprt_exit(1);
 		}
 	}
 
 	rtnl_close(&rth);
 
-	exit(0);
+	iprt_exit(0);
 }
 
 static int print_spdinfo(struct nlmsghdr *n, void *arg)
@@ -1032,14 +1030,14 @@ static int xfrm_spd_setinfo(int argc, char **argv)
 			struct xfrmu_spdhthresh thr;
 
 			if (thr4)
-				duparg("hthresh4", *argv);
+				return duparg("hthresh4", *argv);
 			thr4 = *argv;
 			NEXT_ARG();
 			if (get_u8(&thr.lbits, *argv, 0) || thr.lbits > 32)
-				invarg("hthresh4 LBITS value is invalid", *argv);
+				return invarg("hthresh4 LBITS value is invalid", *argv);
 			NEXT_ARG();
 			if (get_u8(&thr.rbits, *argv, 0) || thr.rbits > 32)
-				invarg("hthresh4 RBITS value is invalid", *argv);
+				return invarg("hthresh4 RBITS value is invalid", *argv);
 
 			addattr_l(&req.n, sizeof(req), XFRMA_SPD_IPV4_HTHRESH,
 				  (void *)&thr, sizeof(thr));
@@ -1047,29 +1045,29 @@ static int xfrm_spd_setinfo(int argc, char **argv)
 			struct xfrmu_spdhthresh thr;
 
 			if (thr6)
-				duparg("hthresh6", *argv);
+				return duparg("hthresh6", *argv);
 			thr6 = *argv;
 			NEXT_ARG();
 			if (get_u8(&thr.lbits, *argv, 0) || thr.lbits > 128)
-				invarg("hthresh6 LBITS value is invalid", *argv);
+				return invarg("hthresh6 LBITS value is invalid", *argv);
 			NEXT_ARG();
 			if (get_u8(&thr.rbits, *argv, 0) || thr.rbits > 128)
-				invarg("hthresh6 RBITS value is invalid", *argv);
+				return invarg("hthresh6 RBITS value is invalid", *argv);
 
 			addattr_l(&req.n, sizeof(req), XFRMA_SPD_IPV6_HTHRESH,
 				  (void *)&thr, sizeof(thr));
 		} else {
-			invarg("unknown", *argv);
+			return invarg("unknown", *argv);
 		}
 
 		argc--; argv++;
 	}
 
 	if (rtnl_open_byproto(&rth, 0, NETLINK_XFRM) < 0)
-		exit(1);
+		iprt_exit(1);
 
 	if (rtnl_talk(&rth, &req.n, NULL) < 0)
-		exit(2);
+		iprt_exit(2);
 
 	rtnl_close(&rth);
 
@@ -1091,10 +1089,10 @@ static int xfrm_spd_getinfo(int argc, char **argv)
 	struct nlmsghdr *answer;
 
 	if (rtnl_open_byproto(&rth, 0, NETLINK_XFRM) < 0)
-		exit(1);
+		iprt_exit(1);
 
 	if (rtnl_talk(&rth, &req.n, &answer) < 0)
-		exit(2);
+		iprt_exit(2);
 
 	print_spdinfo(answer, (void *)stdout);
 
@@ -1121,13 +1119,13 @@ static int xfrm_policy_flush(int argc, char **argv)
 	while (argc > 0) {
 		if (strcmp(*argv, "ptype") == 0) {
 			if (ptypep)
-				duparg("ptype", *argv);
+				return duparg("ptype", *argv);
 			ptypep = *argv;
 
 			NEXT_ARG();
 			xfrm_policy_ptype_parse(&upt.type, &argc, &argv);
 		} else
-			invarg("unknown", *argv);
+			return invarg("unknown", *argv);
 
 		argc--; argv++;
 	}
@@ -1138,13 +1136,13 @@ static int xfrm_policy_flush(int argc, char **argv)
 	}
 
 	if (rtnl_open_byproto(&rth, 0, NETLINK_XFRM) < 0)
-		exit(1);
+		iprt_exit(1);
 
 	if (show_stats > 1)
 		fprintf(stderr, "Flush policy\n");
 
 	if (rtnl_talk(&rth, &req.n, NULL) < 0)
-		exit(2);
+		iprt_exit(2);
 
 	rtnl_close(&rth);
 
@@ -1178,7 +1176,7 @@ int do_xfrm_policy(int argc, char **argv)
 	if (matches(*argv, "set") == 0)
 		return xfrm_spd_setinfo(argc-1, argv+1);
 	if (matches(*argv, "help") == 0)
-		usage();
+		return usage();
 	fprintf(stderr, "Command \"%s\" is unknown, try \"ip xfrm policy help\".\n", *argv);
-	exit(-1);
+	iprt_exit(-1);
 }

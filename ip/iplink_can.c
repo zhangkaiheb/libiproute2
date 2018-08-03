@@ -73,7 +73,7 @@ static int get_float(float *val, const char *arg)
 	return 0;
 }
 
-static void set_ctrlmode(char *name, char *arg,
+static int set_ctrlmode(char *name, char *arg,
 			 struct can_ctrlmode *cm, __u32 flags)
 {
 	if (strcmp(arg, "on") == 0) {
@@ -82,9 +82,10 @@ static void set_ctrlmode(char *name, char *arg,
 		fprintf(stderr,
 			"Error: argument of \"%s\" must be \"on\" or \"off\", not \"%s\"\n",
 			name, arg);
-		exit(-1);
+		iprt_exit(-1);
 	}
 	cm->mask |= flags;
+	return 0;
 }
 
 static void print_ctrlmode(FILE *f, __u32 cm)
@@ -119,98 +120,106 @@ static int can_parse_opt(struct link_util *lu, int argc, char **argv,
 		if (matches(*argv, "bitrate") == 0) {
 			NEXT_ARG();
 			if (get_u32(&bt.bitrate, *argv, 0))
-				invarg("invalid \"bitrate\" value\n", *argv);
+				return invarg("invalid \"bitrate\" value\n", *argv);
 		} else if (matches(*argv, "sample-point") == 0) {
 			float sp;
 
 			NEXT_ARG();
 			if (get_float(&sp, *argv))
-				invarg("invalid \"sample-point\" value\n",
+				return invarg("invalid \"sample-point\" value\n",
 				       *argv);
 			bt.sample_point = (__u32)(sp * 1000);
 		} else if (matches(*argv, "tq") == 0) {
 			NEXT_ARG();
 			if (get_u32(&bt.tq, *argv, 0))
-				invarg("invalid \"tq\" value\n", *argv);
+				return invarg("invalid \"tq\" value\n", *argv);
 		} else if (matches(*argv, "prop-seg") == 0) {
 			NEXT_ARG();
 			if (get_u32(&bt.prop_seg, *argv, 0))
-				invarg("invalid \"prop-seg\" value\n", *argv);
+				return invarg("invalid \"prop-seg\" value\n", *argv);
 		} else if (matches(*argv, "phase-seg1") == 0) {
 			NEXT_ARG();
 			if (get_u32(&bt.phase_seg1, *argv, 0))
-				invarg("invalid \"phase-seg1\" value\n", *argv);
+				return invarg("invalid \"phase-seg1\" value\n", *argv);
 		} else if (matches(*argv, "phase-seg2") == 0) {
 			NEXT_ARG();
 			if (get_u32(&bt.phase_seg2, *argv, 0))
-				invarg("invalid \"phase-seg2\" value\n", *argv);
+				return invarg("invalid \"phase-seg2\" value\n", *argv);
 		} else if (matches(*argv, "sjw") == 0) {
 			NEXT_ARG();
 			if (get_u32(&bt.sjw, *argv, 0))
-				invarg("invalid \"sjw\" value\n", *argv);
+				return invarg("invalid \"sjw\" value\n", *argv);
 		} else if (matches(*argv, "dbitrate") == 0) {
 			NEXT_ARG();
 			if (get_u32(&dbt.bitrate, *argv, 0))
-				invarg("invalid \"dbitrate\" value\n", *argv);
+				return invarg("invalid \"dbitrate\" value\n", *argv);
 		} else if (matches(*argv, "dsample-point") == 0) {
 			float sp;
 
 			NEXT_ARG();
 			if (get_float(&sp, *argv))
-				invarg("invalid \"dsample-point\" value\n", *argv);
+				return invarg("invalid \"dsample-point\" value\n", *argv);
 			dbt.sample_point = (__u32)(sp * 1000);
 		} else if (matches(*argv, "dtq") == 0) {
 			NEXT_ARG();
 			if (get_u32(&dbt.tq, *argv, 0))
-				invarg("invalid \"dtq\" value\n", *argv);
+				return invarg("invalid \"dtq\" value\n", *argv);
 		} else if (matches(*argv, "dprop-seg") == 0) {
 			NEXT_ARG();
 			if (get_u32(&dbt.prop_seg, *argv, 0))
-				invarg("invalid \"dprop-seg\" value\n", *argv);
+				return invarg("invalid \"dprop-seg\" value\n", *argv);
 		} else if (matches(*argv, "dphase-seg1") == 0) {
 			NEXT_ARG();
 			if (get_u32(&dbt.phase_seg1, *argv, 0))
-				invarg("invalid \"dphase-seg1\" value\n", *argv);
+				return invarg("invalid \"dphase-seg1\" value\n", *argv);
 		} else if (matches(*argv, "dphase-seg2") == 0) {
 			NEXT_ARG();
 			if (get_u32(&dbt.phase_seg2, *argv, 0))
-				invarg("invalid \"dphase-seg2\" value\n", *argv);
+				return invarg("invalid \"dphase-seg2\" value\n", *argv);
 		} else if (matches(*argv, "dsjw") == 0) {
 			NEXT_ARG();
 			if (get_u32(&dbt.sjw, *argv, 0))
-				invarg("invalid \"dsjw\" value\n", *argv);
+				return invarg("invalid \"dsjw\" value\n", *argv);
 		} else if (matches(*argv, "loopback") == 0) {
 			NEXT_ARG();
-			set_ctrlmode("loopback", *argv, &cm,
-				     CAN_CTRLMODE_LOOPBACK);
+			if (set_ctrlmode("loopback", *argv, &cm,
+				     CAN_CTRLMODE_LOOPBACK))
+				return -1;
 		} else if (matches(*argv, "listen-only") == 0) {
 			NEXT_ARG();
-			set_ctrlmode("listen-only", *argv, &cm,
-				     CAN_CTRLMODE_LISTENONLY);
+			if (set_ctrlmode("listen-only", *argv, &cm,
+				     CAN_CTRLMODE_LISTENONLY))
+				return -1;
 		} else if (matches(*argv, "triple-sampling") == 0) {
 			NEXT_ARG();
-			set_ctrlmode("triple-sampling", *argv, &cm,
-				     CAN_CTRLMODE_3_SAMPLES);
+			if (set_ctrlmode("triple-sampling", *argv, &cm,
+				     CAN_CTRLMODE_3_SAMPLES))
+				return -1;
 		} else if (matches(*argv, "one-shot") == 0) {
 			NEXT_ARG();
-			set_ctrlmode("one-shot", *argv, &cm,
-				     CAN_CTRLMODE_ONE_SHOT);
+			if (set_ctrlmode("one-shot", *argv, &cm,
+				     CAN_CTRLMODE_ONE_SHOT))
+				return -1;
 		} else if (matches(*argv, "berr-reporting") == 0) {
 			NEXT_ARG();
-			set_ctrlmode("berr-reporting", *argv, &cm,
-				     CAN_CTRLMODE_BERR_REPORTING);
+			if (set_ctrlmode("berr-reporting", *argv, &cm,
+				     CAN_CTRLMODE_BERR_REPORTING))
+				return -1;
 		} else if (matches(*argv, "fd") == 0) {
 			NEXT_ARG();
-			set_ctrlmode("fd", *argv, &cm,
-				     CAN_CTRLMODE_FD);
+			if (set_ctrlmode("fd", *argv, &cm,
+				     CAN_CTRLMODE_FD))
+				return -1;
 		} else if (matches(*argv, "fd-non-iso") == 0) {
 			NEXT_ARG();
-			set_ctrlmode("fd-non-iso", *argv, &cm,
-				     CAN_CTRLMODE_FD_NON_ISO);
+			if (set_ctrlmode("fd-non-iso", *argv, &cm,
+				     CAN_CTRLMODE_FD_NON_ISO))
+				return -1;
 		} else if (matches(*argv, "presume-ack") == 0) {
 			NEXT_ARG();
-			set_ctrlmode("presume-ack", *argv, &cm,
-				     CAN_CTRLMODE_PRESUME_ACK);
+			if (set_ctrlmode("presume-ack", *argv, &cm,
+				     CAN_CTRLMODE_PRESUME_ACK))
+				return -1;
 		} else if (matches(*argv, "restart") == 0) {
 			__u32 val = 1;
 
@@ -220,14 +229,14 @@ static int can_parse_opt(struct link_util *lu, int argc, char **argv,
 
 			NEXT_ARG();
 			if (get_u32(&val, *argv, 0))
-				invarg("invalid \"restart-ms\" value\n", *argv);
+				return invarg("invalid \"restart-ms\" value\n", *argv);
 			addattr32(n, 1024, IFLA_CAN_RESTART_MS, val);
 		} else if (matches(*argv, "termination") == 0) {
 			__u16 val;
 
 			NEXT_ARG();
 			if (get_u16(&val, *argv, 0))
-				invarg("invalid \"termination\" value\n",
+				return invarg("invalid \"termination\" value\n",
 				       *argv);
 			addattr16(n, 1024, IFLA_CAN_TERMINATION, val);
 		} else if (matches(*argv, "help") == 0) {

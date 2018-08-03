@@ -23,17 +23,16 @@
 #include "utils.h"
 #include "ip_common.h"
 
-static void usage(void) __attribute__((noreturn));
 int prefix_banner;
 int listen_all_nsid;
 
-static void usage(void)
+static int usage(void)
 {
 	fprintf(stderr, "Usage: ip monitor [ all | LISTofOBJECTS ] [ FILE ] [ label ] [all-nsid] [dev DEVICE]\n");
 	fprintf(stderr, "LISTofOBJECTS := link | address | route | mroute | prefix |\n");
 	fprintf(stderr, "                 neigh | netconf | rule | nsid\n");
 	fprintf(stderr, "FILE := file FILENAME\n");
-	exit(-1);
+	iprt_exit(-1);
 }
 
 static void print_headers(FILE *fp, char *label, struct rtnl_ctrl_data *ctrl)
@@ -217,16 +216,16 @@ int do_ipmonitor(int argc, char **argv)
 		} else if (matches(*argv, "all-nsid") == 0) {
 			listen_all_nsid = 1;
 		} else if (matches(*argv, "help") == 0) {
-			usage();
+			return usage();
 		} else if (strcmp(*argv, "dev") == 0) {
 			NEXT_ARG();
 
 			ifindex = ll_name_to_index(*argv);
 			if (!ifindex)
-				invarg("Device does not exist\n", *argv);
+				return invarg("Device does not exist\n", *argv);
 		} else {
 			fprintf(stderr, "Argument \"%s\" is unknown, try \"ip monitor help\".\n", *argv);
-			exit(-1);
+			iprt_exit(-1);
 		}
 		argc--;	argv++;
 	}
@@ -290,7 +289,7 @@ int do_ipmonitor(int argc, char **argv)
 		fp = fopen(file, "r");
 		if (fp == NULL) {
 			perror("Cannot fopen");
-			exit(-1);
+			iprt_exit(-1);
 		}
 		err = rtnl_from_file(fp, accept_msg, stdout);
 		fclose(fp);
@@ -298,16 +297,16 @@ int do_ipmonitor(int argc, char **argv)
 	}
 
 	if (rtnl_open(&rth, groups) < 0)
-		exit(1);
+		iprt_exit(1);
 	if (listen_all_nsid && rtnl_listen_all_nsid(&rth) < 0)
-		exit(1);
+		iprt_exit(1);
 
 	ll_init_map(&rth);
 	netns_nsid_socket_init();
 	netns_map_init();
 
 	if (rtnl_listen(&rth, accept_msg, stdout) < 0)
-		exit(2);
+		iprt_exit(2);
 
 	return 0;
 }

@@ -145,11 +145,11 @@ get_failed:
 			NEXT_ARG();
 			link = ll_name_to_index(*argv);
 			if (!link)
-				exit(nodev(*argv));
+				iprt_exit(nodev(*argv));
 		} else if (strcmp(*argv, "fwmark") == 0) {
 			NEXT_ARG();
 			if (get_u32(&fwmark, *argv, 0))
-				invarg("invalid fwmark\n", *argv);
+				return invarg("invalid fwmark\n", *argv);
 		} else {
 			vti6_print_help(lu, argc, argv, stderr);
 			return -1;

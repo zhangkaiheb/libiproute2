@@ -252,14 +252,14 @@ get_failed:
 			NEXT_ARG();
 			link = ll_name_to_index(*argv);
 			if (!link)
-				exit(nodev(*argv));
+				iprt_exit(nodev(*argv));
 		} else if (!matches(*argv, "ttl") ||
 			   !matches(*argv, "hoplimit") ||
 			   !matches(*argv, "hlim")) {
 			NEXT_ARG();
 			if (strcmp(*argv, "inherit") != 0) {
 				if (get_u8(&hop_limit, *argv, 0))
-					invarg("invalid HLIM\n", *argv);
+					return invarg("invalid HLIM\n", *argv);
 			} else
 				hop_limit = 0;
 		} else if (!matches(*argv, "tos") ||
@@ -273,7 +273,7 @@ get_failed:
 				flags |= IP6_TNL_F_USE_ORIG_TCLASS;
 			else {
 				if (get_u8(&uval, *argv, 16))
-					invarg("invalid TClass", *argv);
+					return invarg("invalid TClass", *argv);
 				flowinfo |= htonl((__u32)uval << 20) & IP6_FLOWINFO_TCLASS;
 				flags &= ~IP6_TNL_F_USE_ORIG_TCLASS;
 			}
@@ -287,16 +287,16 @@ get_failed:
 				flags |= IP6_TNL_F_USE_ORIG_FLOWLABEL;
 			else {
 				if (get_u32(&uval, *argv, 16))
-					invarg("invalid Flowlabel", *argv);
+					return invarg("invalid Flowlabel", *argv);
 				if (uval > 0xFFFFF)
-					invarg("invalid Flowlabel", *argv);
+					return invarg("invalid Flowlabel", *argv);
 				flowinfo |= htonl(uval) & IP6_FLOWINFO_FLOWLABEL;
 				flags &= ~IP6_TNL_F_USE_ORIG_FLOWLABEL;
 			}
 		} else if (strcmp(*argv, "dscp") == 0) {
 			NEXT_ARG();
 			if (strcmp(*argv, "inherit") != 0)
-				invarg("not inherit", *argv);
+				return invarg("not inherit", *argv);
 			flags |= IP6_TNL_F_RCV_DSCP_COPY;
 		} else if (strcmp(*argv, "noencap") == 0) {
 			encaptype = TUNNEL_ENCAP_NONE;
@@ -309,17 +309,17 @@ get_failed:
 			else if (strcmp(*argv, "none") == 0)
 				encaptype = TUNNEL_ENCAP_NONE;
 			else
-				invarg("Invalid encap type.", *argv);
+				return invarg("Invalid encap type.", *argv);
 		} else if (strcmp(*argv, "encap-sport") == 0) {
 			NEXT_ARG();
 			if (strcmp(*argv, "auto") == 0)
 				encapsport = 0;
 			else if (get_u16(&encapsport, *argv, 0))
-				invarg("Invalid source port.", *argv);
+				return invarg("Invalid source port.", *argv);
 		} else if (strcmp(*argv, "encap-dport") == 0) {
 			NEXT_ARG();
 			if (get_u16(&encapdport, *argv, 0))
-				invarg("Invalid destination port.", *argv);
+				return invarg("Invalid destination port.", *argv);
 		} else if (strcmp(*argv, "encap-csum") == 0) {
 			encapflags |= TUNNEL_ENCAP_FLAG_CSUM;
 		} else if (strcmp(*argv, "noencap-csum") == 0) {
@@ -341,7 +341,7 @@ get_failed:
 				fwmark = 0;
 			} else {
 				if (get_u32(&fwmark, *argv, 0))
-					invarg("invalid fwmark\n", *argv);
+					return invarg("invalid fwmark\n", *argv);
 				flags &= ~IP6_TNL_F_USE_ORIG_FWMARK;
 			}
 		} else if (strcmp(*argv, "allow-localremote") == 0) {
@@ -356,22 +356,22 @@ get_failed:
 				__u8 uval;
 
 				if (get_u8(&uval, *argv, 0))
-					invarg("invalid ELIM", *argv);
+					return invarg("invalid ELIM", *argv);
 				encap_limit = uval;
 				flags &= ~IP6_TNL_F_IGN_ENCAP_LIMIT;
 			}
 		} else if (strcmp(*argv, "erspan") == 0) {
 			NEXT_ARG();
 			if (get_u32(&erspan_idx, *argv, 0))
-				invarg("invalid erspan index\n", *argv);
+				return invarg("invalid erspan index\n", *argv);
 			if (erspan_idx & ~((1<<20) - 1) || erspan_idx == 0)
-				invarg("erspan index must be > 0 and <= 20-bit\n", *argv);
+				return invarg("erspan index must be > 0 and <= 20-bit\n", *argv);
 		} else if (strcmp(*argv, "erspan_ver") == 0) {
 			NEXT_ARG();
 			if (get_u8(&erspan_ver, *argv, 0))
-				invarg("invalid erspan version\n", *argv);
+				return invarg("invalid erspan version\n", *argv);
 			if (erspan_ver != 1 && erspan_ver != 2)
-				invarg("erspan version must be 1 or 2\n", *argv);
+				return invarg("erspan version must be 1 or 2\n", *argv);
 		} else if (strcmp(*argv, "erspan_dir") == 0) {
 			NEXT_ARG();
 			if (matches(*argv, "ingress") == 0)
@@ -379,11 +379,11 @@ get_failed:
 			else if (matches(*argv, "egress") == 0)
 				erspan_dir = 1;
 			else
-				invarg("Invalid erspan direction.", *argv);
+				return invarg("Invalid erspan direction.", *argv);
 		} else if (strcmp(*argv, "erspan_hwid") == 0) {
 			NEXT_ARG();
 			if (get_u16(&erspan_hwid, *argv, 0))
-				invarg("invalid erspan hwid\n", *argv);
+				return invarg("invalid erspan hwid\n", *argv);
 		} else {
 			gre_print_help(lu, argc, argv, stderr);
 			return -1;

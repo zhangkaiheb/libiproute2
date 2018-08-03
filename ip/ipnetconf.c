@@ -33,12 +33,10 @@ static const char * const rp_filter_names[] = {
 	"off", "strict", "loose"
 };
 
-static void usage(void) __attribute__((noreturn));
-
-static void usage(void)
+static int usage(void)
 {
 	fprintf(stderr, "Usage: ip netconf show [ dev STRING ]\n");
-	exit(-1);
+	iprt_exit(-1);
 }
 
 static void print_onoff(FILE *fp, const char *flag, __u32 val)
@@ -199,7 +197,7 @@ static int do_show(int argc, char **argv)
 
 		if (rtnl_send(&rth, &req.n, req.n.nlmsg_len) < 0) {
 			perror("Can not send request");
-			exit(1);
+			iprt_exit(1);
 		}
 		rtnl_listen(&rth, print_netconf, stdout);
 	} else {
@@ -208,10 +206,11 @@ dump:
 		if (rtnl_wilddump_request(&rth, filter.family,
 					  RTM_GETNETCONF) < 0) {
 			perror("Cannot send dump request");
-			exit(1);
+			iprt_exit(1);
 		}
 
-		new_json_obj(json);
+		if (new_json_obj(json))
+			return -1;
 		if (rtnl_dump_filter(&rth, print_netconf2, stdout) < 0) {
 			/* kernel does not support netconf dump on AF_UNSPEC;
 			 * fall back to requesting by family
@@ -223,7 +222,7 @@ dump:
 			}
 			perror("RTNETLINK answers");
 			fprintf(stderr, "Dump terminated\n");
-			exit(1);
+			iprt_exit(1);
 		}
 		delete_json_obj();
 		if (preferred_family == AF_UNSPEC && filter.family == AF_INET) {
@@ -243,12 +242,12 @@ int do_ipnetconf(int argc, char **argv)
 		    matches(*argv, "list") == 0)
 			return do_show(argc-1, argv+1);
 		if (matches(*argv, "help") == 0)
-			usage();
+			return usage();
 	} else
 		return do_show(0, NULL);
 
 	fprintf(stderr,
 		"Command \"%s\" is unknown, try \"ip netconf help\".\n",
 		*argv);
-	exit(-1);
+	iprt_exit(-1);
 }

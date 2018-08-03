@@ -54,27 +54,27 @@ static int hsr_parse_opt(struct link_util *lu, int argc, char **argv,
 		if (matches(*argv, "supervision") == 0) {
 			NEXT_ARG();
 			if (get_u8(&multicast_spec, *argv, 0))
-				invarg("ADDR-BYTE is invalid", *argv);
+				return invarg("ADDR-BYTE is invalid", *argv);
 			addattr_l(n, 1024, IFLA_HSR_MULTICAST_SPEC,
 				  &multicast_spec, 1);
 		} else if (matches(*argv, "version") == 0) {
 			NEXT_ARG();
 			if (!(get_u8(&protocol_version, *argv, 0) == 0 ||
 			      get_u8(&protocol_version, *argv, 0) == 1))
-				invarg("version is invalid", *argv);
+				return invarg("version is invalid", *argv);
 			addattr_l(n, 1024, IFLA_HSR_VERSION,
 				  &protocol_version, 1);
 		} else if (matches(*argv, "slave1") == 0) {
 			NEXT_ARG();
 			ifindex = ll_name_to_index(*argv);
 			if (ifindex == 0)
-				invarg("No such interface", *argv);
+				return invarg("No such interface", *argv);
 			addattr_l(n, 1024, IFLA_HSR_SLAVE1, &ifindex, 4);
 		} else if (matches(*argv, "slave2") == 0) {
 			NEXT_ARG();
 			ifindex = ll_name_to_index(*argv);
 			if (ifindex == 0)
-				invarg("No such interface", *argv);
+				return invarg("No such interface", *argv);
 			addattr_l(n, 1024, IFLA_HSR_SLAVE2, &ifindex, 4);
 		} else if (matches(*argv, "help") == 0) {
 			usage();

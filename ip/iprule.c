@@ -36,9 +36,7 @@ enum list_action {
 
 extern struct rtnl_handle rth;
 
-static void usage(void) __attribute__((noreturn));
-
-static void usage(void)
+static int usage(void)
 {
 	fprintf(stderr,
 		"Usage: ip rule { add | del } SELECTOR ACTION\n"
@@ -59,7 +57,7 @@ static void usage(void)
 		"SUPPRESSOR := [ suppress_prefixlength NUMBER ]\n"
 		"              [ suppress_ifgroup DEVGROUP ]\n"
 		"TABLE_ID := [ local | main | default | NUMBER ]\n");
-	exit(-1);
+	iprt_exit(-1);
 }
 
 static struct
@@ -529,7 +527,7 @@ static int iprule_list_flush_or_save(int argc, char **argv, int action)
 
 			NEXT_ARG();
 			if (get_u32(&pref, *argv, 0))
-				invarg("preference value is invalid\n", *argv);
+				return invarg("preference value is invalid\n", *argv);
 			filter.pref = pref;
 			filter.prefmask = 1;
 		} else if (strcmp(*argv, "not") == 0) {
@@ -539,7 +537,7 @@ static int iprule_list_flush_or_save(int argc, char **argv, int action)
 
 			NEXT_ARG();
 			if (rtnl_dsfield_a2n(&tos, *argv))
-				invarg("TOS value is invalid\n", *argv);
+				return invarg("TOS value is invalid\n", *argv);
 			filter.tos = tos;
 			filter.tosmask = 1;
 		} else if (strcmp(*argv, "fwmark") == 0) {
@@ -551,11 +549,11 @@ static int iprule_list_flush_or_save(int argc, char **argv, int action)
 			if (slash != NULL)
 				*slash = '\0';
 			if (get_u32(&fwmark, *argv, 0))
-				invarg("fwmark value is invalid\n", *argv);
+				return invarg("fwmark value is invalid\n", *argv);
 			filter.fwmark = fwmark;
 			if (slash) {
 				if (get_u32(&fwmask, slash+1, 0))
-					invarg("fwmask value is invalid\n",
+					return invarg("fwmask value is invalid\n",
 					       slash+1);
 				filter.fwmask = fwmask;
 			}
@@ -563,12 +561,12 @@ static int iprule_list_flush_or_save(int argc, char **argv, int action)
 			   strcmp(*argv, "iif") == 0) {
 			NEXT_ARG();
 			if (get_ifname(filter.iif, *argv))
-				invarg("\"iif\"/\"dev\" not a valid ifname", *argv);
+				return invarg("\"iif\"/\"dev\" not a valid ifname", *argv);
 			filter.iifmask = 1;
 		} else if (strcmp(*argv, "oif") == 0) {
 			NEXT_ARG();
 			if (get_ifname(filter.oif, *argv))
-				invarg("\"oif\" not a valid ifname", *argv);
+				return invarg("\"oif\" not a valid ifname", *argv);
 			filter.oifmask = 1;
 		} else if (strcmp(*argv, "l3mdev") == 0) {
 			filter.l3mdev = 1;
@@ -578,7 +576,7 @@ static int iprule_list_flush_or_save(int argc, char **argv, int action)
 			if (sscanf(*argv, "%u-%u",
 				   &filter.range.start,
 				   &filter.range.end) != 2)
-				invarg("invalid UID range\n", *argv);
+				return invarg("invalid UID range\n", *argv);
 
 		} else if (matches(*argv, "lookup") == 0 ||
 			   matches(*argv, "table") == 0) {
@@ -586,20 +584,20 @@ static int iprule_list_flush_or_save(int argc, char **argv, int action)
 
 			NEXT_ARG();
 			if (rtnl_rttable_a2n(&tid, *argv))
-				invarg("table id value is invalid\n", *argv);
+				return invarg("table id value is invalid\n", *argv);
 			filter.tb = tid;
 		} else if (matches(*argv, "from") == 0 ||
 			   matches(*argv, "src") == 0) {
 			NEXT_ARG();
 			if (get_prefix(&filter.src, *argv, af))
-				invarg("from value is invalid\n", *argv);
+				return invarg("from value is invalid\n", *argv);
 		} else if (matches(*argv, "protocol") == 0) {
 			__u32 prot;
 			NEXT_ARG();
 			filter.protocolmask = -1;
 			if (rtnl_rtprot_a2n(&prot, *argv)) {
 				if (strcmp(*argv, "all") != 0)
-					invarg("invalid \"protocol\"\n", *argv);
+					return invarg("invalid \"protocol\"\n", *argv);
 				prot = 0;
 				filter.protocolmask = 0;
 			}
@@ -610,7 +608,7 @@ static int iprule_list_flush_or_save(int argc, char **argv, int action)
 				NEXT_ARG();
 			}
 			if (get_prefix(&filter.dst, *argv, af))
-				invarg("to value is invalid\n", *argv);
+				return invarg("to value is invalid\n", *argv);
 		}
 		argc--; argv++;
 	}
@@ -620,7 +618,8 @@ static int iprule_list_flush_or_save(int argc, char **argv, int action)
 		return 1;
 	}
 
-	new_json_obj(json);
+	if (new_json_obj(json))
+		return -1;
 	if (rtnl_dump_filter(&rth, filter_fn, stdout) < 0) {
 		fprintf(stderr, "Dump terminated\n");
 		return 1;
@@ -671,9 +670,9 @@ static int restore_handler(const struct sockaddr_nl *nl,
 static int iprule_restore(void)
 {
 	if (rule_dump_check_magic())
-		exit(-1);
+		iprt_exit(-1);
 
-	exit(rtnl_from_file(stdin, &restore_handler, NULL));
+	iprt_exit(rtnl_from_file(stdin, &restore_handler, NULL));
 }
 
 static int iprule_modify(int cmd, int argc, char **argv)
@@ -729,7 +728,7 @@ static int iprule_modify(int cmd, int argc, char **argv)
 
 			NEXT_ARG();
 			if (get_u32(&pref, *argv, 0))
-				invarg("preference value is invalid\n", *argv);
+				return invarg("preference value is invalid\n", *argv);
 			addattr32(&req.n, sizeof(req), FRA_PRIORITY, pref);
 		} else if (strcmp(*argv, "tos") == 0 ||
 			   matches(*argv, "dsfield") == 0) {
@@ -737,7 +736,7 @@ static int iprule_modify(int cmd, int argc, char **argv)
 
 			NEXT_ARG();
 			if (rtnl_dsfield_a2n(&tos, *argv))
-				invarg("TOS value is invalid\n", *argv);
+				return invarg("TOS value is invalid\n", *argv);
 			req.frh.tos = tos;
 		} else if (strcmp(*argv, "fwmark") == 0) {
 			char *slash;
@@ -749,11 +748,11 @@ static int iprule_modify(int cmd, int argc, char **argv)
 			if (slash != NULL)
 				*slash = '\0';
 			if (get_u32(&fwmark, *argv, 0))
-				invarg("fwmark value is invalid\n", *argv);
+				return invarg("fwmark value is invalid\n", *argv);
 			addattr32(&req.n, sizeof(req), FRA_FWMARK, fwmark);
 			if (slash) {
 				if (get_u32(&fwmask, slash+1, 0))
-					invarg("fwmask value is invalid\n",
+					return invarg("fwmask value is invalid\n",
 					       slash+1);
 				addattr32(&req.n, sizeof(req),
 					  FRA_FWMASK, fwmask);
@@ -763,20 +762,20 @@ static int iprule_modify(int cmd, int argc, char **argv)
 
 			NEXT_ARG();
 			if (get_rt_realms_or_raw(&realm, *argv))
-				invarg("invalid realms\n", *argv);
+				return invarg("invalid realms\n", *argv);
 			addattr32(&req.n, sizeof(req), FRA_FLOW, realm);
 		} else if (matches(*argv, "protocol") == 0) {
 			__u32 proto;
 
 			NEXT_ARG();
 			if (rtnl_rtprot_a2n(&proto, *argv))
-				invarg("\"protocol\" value is invalid\n", *argv);
+				return invarg("\"protocol\" value is invalid\n", *argv);
 			addattr8(&req.n, sizeof(req), FRA_PROTOCOL, proto);
 		} else if (matches(*argv, "table") == 0 ||
 			   strcmp(*argv, "lookup") == 0) {
 			NEXT_ARG();
 			if (rtnl_rttable_a2n(&tid, *argv))
-				invarg("invalid table ID\n", *argv);
+				return invarg("invalid table ID\n", *argv);
 			if (tid < 256)
 				req.frh.table = tid;
 			else {
@@ -790,7 +789,7 @@ static int iprule_modify(int cmd, int argc, char **argv)
 
 			NEXT_ARG();
 			if (get_s32(&pl, *argv, 0) || pl < 0)
-				invarg("suppress_prefixlength value is invalid\n",
+				return invarg("suppress_prefixlength value is invalid\n",
 				       *argv);
 			addattr32(&req.n, sizeof(req),
 				  FRA_SUPPRESS_PREFIXLEN, pl);
@@ -800,7 +799,7 @@ static int iprule_modify(int cmd, int argc, char **argv)
 			int group;
 
 			if (rtnl_group_a2n(&group, *argv))
-				invarg("Invalid \"suppress_ifgroup\" value\n",
+				return invarg("Invalid \"suppress_ifgroup\" value\n",
 				       *argv);
 			addattr32(&req.n, sizeof(req),
 				  FRA_SUPPRESS_IFGROUP, group);
@@ -808,13 +807,13 @@ static int iprule_modify(int cmd, int argc, char **argv)
 			   strcmp(*argv, "iif") == 0) {
 			NEXT_ARG();
 			if (check_ifname(*argv))
-				invarg("\"iif\"/\"dev\" not a valid ifname", *argv);
+				return invarg("\"iif\"/\"dev\" not a valid ifname", *argv);
 			addattr_l(&req.n, sizeof(req), FRA_IFNAME,
 				  *argv, strlen(*argv)+1);
 		} else if (strcmp(*argv, "oif") == 0) {
 			NEXT_ARG();
 			if (check_ifname(*argv))
-				invarg("\"oif\" not a valid ifname", *argv);
+				return invarg("\"oif\" not a valid ifname", *argv);
 			addattr_l(&req.n, sizeof(req), FRA_OIFNAME,
 				  *argv, strlen(*argv)+1);
 		} else if (strcmp(*argv, "l3mdev") == 0) {
@@ -826,7 +825,7 @@ static int iprule_modify(int cmd, int argc, char **argv)
 
 			NEXT_ARG();
 			if (sscanf(*argv, "%u-%u", &r.start, &r.end) != 2)
-				invarg("invalid UID range\n", *argv);
+				return invarg("invalid UID range\n", *argv);
 			addattr_l(&req.n, sizeof(req), FRA_UID_RANGE, &r,
 				  sizeof(r));
 		} else if (strcmp(*argv, "nat") == 0 ||
@@ -842,7 +841,7 @@ static int iprule_modify(int cmd, int argc, char **argv)
 			NEXT_ARG();
 			ipproto = inet_proto_a2n(*argv);
 			if (ipproto < 0)
-				invarg("Invalid \"ipproto\" value\n",
+				return invarg("Invalid \"ipproto\" value\n",
 				       *argv);
 			addattr8(&req.n, sizeof(req), FRA_IP_PROTO, ipproto);
 		} else if (strcmp(*argv, "sport") == 0) {
@@ -854,7 +853,7 @@ static int iprule_modify(int cmd, int argc, char **argv)
 			if (ret == 1)
 				r.end = r.start;
 			else if (ret != 2)
-				invarg("invalid port range\n", *argv);
+				return invarg("invalid port range\n", *argv);
 			addattr_l(&req.n, sizeof(req), FRA_SPORT_RANGE, &r,
 				  sizeof(r));
 		} else if (strcmp(*argv, "dport") == 0) {
@@ -866,7 +865,7 @@ static int iprule_modify(int cmd, int argc, char **argv)
 			if (ret == 1)
 				r.end = r.start;
 			else if (ret != 2)
-				invarg("invalid dport range\n", *argv);
+				return invarg("invalid dport range\n", *argv);
 			addattr_l(&req.n, sizeof(req), FRA_DPORT_RANGE, &r,
 				  sizeof(r));
 		} else {
@@ -876,20 +875,20 @@ static int iprule_modify(int cmd, int argc, char **argv)
 				NEXT_ARG();
 
 			if (matches(*argv, "help") == 0)
-				usage();
+				return usage();
 			else if (matches(*argv, "goto") == 0) {
 				__u32 target;
 
 				type = FR_ACT_GOTO;
 				NEXT_ARG();
 				if (get_u32(&target, *argv, 0))
-					invarg("invalid target\n", *argv);
+					return invarg("invalid target\n", *argv);
 				addattr32(&req.n, sizeof(req),
 					  FRA_GOTO, target);
 			} else if (matches(*argv, "nop") == 0)
 				type = FR_ACT_NOP;
 			else if (rtnl_rtntype_a2n(&type, *argv))
-				invarg("Failed to parse rule type", *argv);
+				return invarg("Failed to parse rule type", *argv);
 			req.frh.action = type;
 			table_ok = 1;
 		}
@@ -934,11 +933,11 @@ int do_iprule(int argc, char **argv)
 	} else if (matches(argv[0], "flush") == 0) {
 		return iprule_list_flush_or_save(argc-1, argv+1, IPRULE_FLUSH);
 	} else if (matches(argv[0], "help") == 0)
-		usage();
+		return usage();
 
 	fprintf(stderr,
 		"Command \"%s\" is unknown, try \"ip rule help\".\n", *argv);
-	exit(-1);
+	iprt_exit(-1);
 }
 
 int do_multirule(int argc, char **argv)
@@ -958,7 +957,7 @@ int do_multirule(int argc, char **argv)
 		fprintf(stderr,
 			"Multicast rules are only supported for IPv4/IPv6, was: %i\n",
 			preferred_family);
-		exit(-1);
+		iprt_exit(-1);
 	}
 
 	return do_iprule(argc, argv);

@@ -37,12 +37,12 @@ int iplink_ifla_xstats(int argc, char **argv)
 		NEXT_ARG();
 		lu = get_link_kind(*argv);
 		if (!lu)
-			invarg("invalid type", *argv);
+			return invarg("invalid type", *argv);
 	} else if (matches(*argv, "help") == 0) {
 		print_explain(stdout);
 		return 0;
 	} else {
-		invarg("unknown argument", *argv);
+		return invarg("unknown argument", *argv);
 	}
 
 	if (!lu) {

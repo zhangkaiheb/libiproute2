@@ -42,9 +42,7 @@ static struct
 	int master;
 } filter;
 
-static void usage(void) __attribute__((noreturn));
-
-static void usage(void)
+static int usage(void)
 {
 	fprintf(stderr, "Usage: ip neigh { add | del | change | replace }\n"
 			"                { ADDR [ lladdr LLADDR ] [ nud STATE ] | proxy ADDR } [ dev DEV ]\n");
@@ -52,7 +50,7 @@ static void usage(void)
 	fprintf(stderr, "                                 [ vrf NAME ]\n\n");
 	fprintf(stderr, "STATE := { permanent | noarp | stale | reachable | none |\n"
 			"           incomplete | delay | probe | failed }\n");
-	exit(-1);
+	iprt_exit(-1);
 }
 
 static int nud_state_a2n(unsigned int *state, const char *arg)
@@ -119,7 +117,7 @@ static int ipneigh_modify(int cmd, int flags, int argc, char **argv)
 		if (matches(*argv, "lladdr") == 0) {
 			NEXT_ARG();
 			if (lladdr_ok)
-				duparg("lladdr", *argv);
+				return duparg("lladdr", *argv);
 			lla = *argv;
 			lladdr_ok = 1;
 		} else if (strcmp(*argv, "nud") == 0) {
@@ -127,14 +125,14 @@ static int ipneigh_modify(int cmd, int flags, int argc, char **argv)
 
 			NEXT_ARG();
 			if (nud_state_a2n(&state, *argv))
-				invarg("nud state is bad", *argv);
+				return invarg("nud state is bad", *argv);
 			req.ndm.ndm_state = state;
 		} else if (matches(*argv, "proxy") == 0) {
 			NEXT_ARG();
 			if (matches(*argv, "help") == 0)
-				usage();
+				return usage();
 			if (dst_ok)
-				duparg("address", *argv);
+				return duparg("address", *argv);
 			get_addr(&dst, *argv, preferred_family);
 			dst_ok = 1;
 			dev_ok = 1;
@@ -151,7 +149,7 @@ static int ipneigh_modify(int cmd, int flags, int argc, char **argv)
 				NEXT_ARG();
 			}
 			if (dst_ok)
-				duparg2("to", *argv);
+				return duparg2("to", *argv);
 			get_addr(&dst, *argv, preferred_family);
 			dst_ok = 1;
 		}
@@ -159,7 +157,7 @@ static int ipneigh_modify(int cmd, int flags, int argc, char **argv)
 	}
 	if (!dev_ok || !dst_ok || dst.family == AF_UNSPEC) {
 		fprintf(stderr, "Device and destination are required arguments.\n");
-		exit(-1);
+		iprt_exit(-1);
 	}
 	req.ndm.ndm_family = dst.family;
 	if (addattr_l(&req.n, sizeof(req), NDA_DST, &dst.data, dst.bytelen) < 0)
@@ -186,7 +184,7 @@ static int ipneigh_modify(int cmd, int flags, int argc, char **argv)
 	}
 
 	if (rtnl_talk(&rth, &req.n, NULL) < 0)
-		exit(2);
+		iprt_exit(2);
 
 	return 0;
 }
@@ -407,7 +405,7 @@ static int do_show_or_flush(int argc, char **argv, int flush)
 		if (strcmp(*argv, "dev") == 0) {
 			NEXT_ARG();
 			if (filter_dev)
-				duparg("dev", *argv);
+				return duparg("dev", *argv);
 			filter_dev = *argv;
 		} else if (strcmp(*argv, "master") == 0) {
 			int ifindex;
@@ -415,7 +413,7 @@ static int do_show_or_flush(int argc, char **argv, int flush)
 			NEXT_ARG();
 			ifindex = ll_name_to_index(*argv);
 			if (!ifindex)
-				invarg("Device does not exist\n", *argv);
+				return invarg("Device does not exist\n", *argv);
 			addattr32(&req.n, sizeof(req), NDA_MASTER, ifindex);
 			filter.master = ifindex;
 		} else if (strcmp(*argv, "vrf") == 0) {
@@ -424,9 +422,9 @@ static int do_show_or_flush(int argc, char **argv, int flush)
 			NEXT_ARG();
 			ifindex = ll_name_to_index(*argv);
 			if (!ifindex)
-				invarg("Not a valid VRF name\n", *argv);
+				return invarg("Not a valid VRF name\n", *argv);
 			if (!name_is_vrf(*argv))
-				invarg("Not a valid VRF name\n", *argv);
+				return invarg("Not a valid VRF name\n", *argv);
 			addattr32(&req.n, sizeof(req), NDA_MASTER, ifindex);
 			filter.master = ifindex;
 		} else if (strcmp(*argv, "unused") == 0) {
@@ -441,7 +439,7 @@ static int do_show_or_flush(int argc, char **argv, int flush)
 			}
 			if (nud_state_a2n(&state, *argv)) {
 				if (strcmp(*argv, "all") != 0)
-					invarg("nud state is bad", *argv);
+					return invarg("nud state is bad", *argv);
 				state = ~0;
 				if (flush)
 					state &= ~NUD_NOARP;
@@ -456,9 +454,9 @@ static int do_show_or_flush(int argc, char **argv, int flush)
 				NEXT_ARG();
 			}
 			if (matches(*argv, "help") == 0)
-				usage();
+				return usage();
 			if (get_prefix(&filter.pfx, *argv, filter.family))
-				invarg("to value is invalid\n", *argv);
+				return invarg("to value is invalid\n", *argv);
 			if (filter.family == AF_UNSPEC)
 				filter.family = filter.pfx.family;
 		}
@@ -487,12 +485,12 @@ static int do_show_or_flush(int argc, char **argv, int flush)
 		while (round < MAX_ROUNDS) {
 			if (rtnl_dump_request_n(&rth, &req.n) < 0) {
 				perror("Cannot send dump request");
-				exit(1);
+				iprt_exit(1);
 			}
 			filter.flushed = 0;
 			if (rtnl_dump_filter(&rth, print_neigh, stdout) < 0) {
 				fprintf(stderr, "Flush terminated\n");
-				exit(1);
+				iprt_exit(1);
 			}
 			if (filter.flushed == 0) {
 				if (show_stats) {
@@ -506,7 +504,7 @@ static int do_show_or_flush(int argc, char **argv, int flush)
 			}
 			round++;
 			if (flush_update() < 0)
-				exit(1);
+				iprt_exit(1);
 			if (show_stats) {
 				printf("\n*** Round %d, deleting %d entries ***\n", round, filter.flushed);
 				fflush(stdout);
@@ -520,13 +518,14 @@ static int do_show_or_flush(int argc, char **argv, int flush)
 
 	if (rtnl_dump_request_n(&rth, &req.n) < 0) {
 		perror("Cannot send dump request");
-		exit(1);
+		iprt_exit(1);
 	}
 
-	new_json_obj(json);
+	if (new_json_obj(json))
+		return -1;
 	if (rtnl_dump_filter(&rth, print_neigh, stdout) < 0) {
 		fprintf(stderr, "Dump terminated\n");
-		exit(1);
+		iprt_exit(1);
 	}
 	delete_json_obj();
 
@@ -556,10 +555,10 @@ int do_ipneigh(int argc, char **argv)
 		if (matches(*argv, "flush") == 0)
 			return do_show_or_flush(argc-1, argv+1, 1);
 		if (matches(*argv, "help") == 0)
-			usage();
+			return usage();
 	} else
 		return do_show_or_flush(0, NULL, 0);
 
 	fprintf(stderr, "Command \"%s\" is unknown, try \"ip neigh help\".\n", *argv);
-	exit(-1);
+	iprt_exit(-1);
 }

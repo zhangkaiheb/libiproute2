@@ -24,7 +24,7 @@
 #include "ip_common.h"
 #include "json_print.h"
 
-static void usage(void)
+static int usage(void)
 {
 	fprintf(stderr,
 		"Usage: ip fou add port PORT { ipproto PROTO  | gue } [ -6 ]\n"
@@ -34,7 +34,7 @@ static void usage(void)
 		"Where: PROTO { ipproto-name | 1..255 }\n"
 		"       PORT { 1..65535 }\n");
 
-	exit(-1);
+	iprt_exit(-1);
 }
 
 /* netlink socket */
@@ -60,7 +60,7 @@ static int fou_parse_opt(int argc, char **argv, struct nlmsghdr *n,
 			NEXT_ARG();
 
 			if (get_be16(&port, *argv, 0) || port == 0)
-				invarg("invalid port", *argv);
+				return invarg("invalid port", *argv);
 			port_set = 1;
 		} else if (!matches(*argv, "ipproto")) {
 			struct protoent *servptr;
@@ -71,7 +71,7 @@ static int fou_parse_opt(int argc, char **argv, struct nlmsghdr *n,
 			if (servptr)
 				ipproto = servptr->p_proto;
 			else if (get_u8(&ipproto, *argv, 0) || ipproto == 0)
-				invarg("invalid ipproto", *argv);
+				return invarg("invalid ipproto", *argv);
 			ipproto_set = 1;
 		} else if (!matches(*argv, "gue")) {
 			gue_set = true;
@@ -194,10 +194,11 @@ static int do_show(int argc, char **argv)
 
 	if (rtnl_send(&genl_rth, &req.n, req.n.nlmsg_len) < 0) {
 		perror("Cannot send show request");
-		exit(1);
+		iprt_exit(1);
 	}
 
-	new_json_obj(json);
+	if (new_json_obj(json))
+		return -1;
 	if (rtnl_dump_filter(&genl_rth, print_fou_mapping, stdout) < 0) {
 		fprintf(stderr, "Dump terminated\n");
 		return 1;
@@ -211,13 +212,13 @@ static int do_show(int argc, char **argv)
 int do_ipfou(int argc, char **argv)
 {
 	if (argc < 1)
-		usage();
+		return usage();
 
 	if (matches(*argv, "help") == 0)
-		usage();
+		return usage();
 
 	if (genl_init_handle(&genl_rth, FOU_GENL_NAME, &genl_family))
-		exit(1);
+		iprt_exit(1);
 
 	if (matches(*argv, "add") == 0)
 		return do_add(argc-1, argv+1);
@@ -228,5 +229,5 @@ int do_ipfou(int argc, char **argv)
 
 	fprintf(stderr,
 		"Command \"%s\" is unknown, try \"ip fou help\".\n", *argv);
-	exit(-1);
+	iprt_exit(-1);
 }

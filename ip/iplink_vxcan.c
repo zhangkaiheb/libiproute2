@@ -61,7 +61,7 @@ static int vxcan_parse_opt(struct link_util *lu, int argc, char **argv,
 		return err;
 
 	if (type)
-		duparg("type", argv[err]);
+		return duparg("type", argv[err]);
 
 	peer_ifm = RTA_DATA(data);
 	peer_ifm->ifi_index = ifm->ifi_index;

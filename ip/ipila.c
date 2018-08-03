@@ -25,7 +25,7 @@
 #include "ila_common.h"
 #include "json_print.h"
 
-static void usage(void)
+static int usage(void)
 {
 	fprintf(stderr,
 "Usage: ip ila add loc_match LOCATOR_MATCH loc LOCATOR [ dev DEV ] OPTIONS\n"
@@ -34,7 +34,7 @@ static void usage(void)
 "OPTIONS := [ csum-mode { adj-transport | neutral-map | neutral-map-auto | no-action } ]\n"
 "           [ ident-type { luid | use-format } ]\n");
 
-	exit(-1);
+	iprt_exit(-1);
 }
 
 /* netlink socket */
@@ -148,10 +148,11 @@ static int do_list(int argc, char **argv)
 
 	if (rtnl_send(&genl_rth, (void *)&req, req.n.nlmsg_len) < 0) {
 		perror("Cannot send dump request");
-		exit(1);
+		iprt_exit(1);
 	}
 
-	new_json_obj(json);
+	if (new_json_obj(json))
+		return -1;
 	if (rtnl_dump_filter(&genl_rth, print_ila_mapping, stdout) < 0) {
 		fprintf(stderr, "Dump terminated\n");
 		return 1;
@@ -287,13 +288,13 @@ static int do_del(int argc, char **argv)
 int do_ipila(int argc, char **argv)
 {
 	if (argc < 1)
-		usage();
+		return usage();
 
 	if (matches(*argv, "help") == 0)
-		usage();
+		return usage();
 
 	if (genl_init_handle(&genl_rth, ILA_GENL_NAME, &genl_family))
-		exit(1);
+		iprt_exit(1);
 
 	if (matches(*argv, "add") == 0)
 		return do_add(argc-1, argv+1);
@@ -304,5 +305,5 @@ int do_ipila(int argc, char **argv)
 
 	fprintf(stderr, "Command \"%s\" is unknown, try \"ip ila help\".\n",
 		*argv);
-	exit(-1);
+	iprt_exit(-1);
 }

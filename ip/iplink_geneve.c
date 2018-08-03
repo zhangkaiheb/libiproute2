@@ -44,14 +44,14 @@ static void explain(void)
 	print_explain(stderr);
 }
 
-static void check_duparg(__u64 *attrs, int type, const char *key,
+static int check_duparg(__u64 *attrs, int type, const char *key,
 			 const char *argv)
 {
 	if (!GENEVE_ATTRSET(*attrs, type)) {
 		*attrs |= (1L << type);
-		return;
+		return 0;
 	}
-	duparg2(key, argv);
+	return duparg2(key, argv);
 }
 
 static int geneve_parse_opt(struct link_util *lu, int argc, char **argv,
@@ -77,28 +77,31 @@ static int geneve_parse_opt(struct link_util *lu, int argc, char **argv,
 		if (!matches(*argv, "id") ||
 		    !matches(*argv, "vni")) {
 			NEXT_ARG();
-			check_duparg(&attrs, IFLA_GENEVE_ID, "id", *argv);
+			if (check_duparg(&attrs, IFLA_GENEVE_ID, "id", *argv))
+				return -1;
 			if (get_u32(&vni, *argv, 0) ||
 			    vni >= 1u << 24)
-				invarg("invalid id", *argv);
+				return invarg("invalid id", *argv);
 		} else if (!matches(*argv, "remote")) {
 			NEXT_ARG();
-			check_duparg(&attrs, IFLA_GENEVE_REMOTE, "remote",
-				     *argv);
+			if (check_duparg(&attrs, IFLA_GENEVE_REMOTE, "remote",
+				     *argv))
+				return -1;
 			get_addr(&daddr, *argv, AF_UNSPEC);
 			if (!is_addrtype_inet_not_multi(&daddr))
-				invarg("invalid remote address", *argv);
+				return invarg("invalid remote address", *argv);
 		} else if (!matches(*argv, "ttl") ||
 			   !matches(*argv, "hoplimit")) {
 			unsigned int uval;
 
 			NEXT_ARG();
-			check_duparg(&attrs, IFLA_GENEVE_TTL, "ttl", *argv);
+			if (check_duparg(&attrs, IFLA_GENEVE_TTL, "ttl", *argv))
+				return -1;
 			if (strcmp(*argv, "inherit") != 0) {
 				if (get_unsigned(&uval, *argv, 0))
-					invarg("invalid TTL", *argv);
+					return invarg("invalid TTL", *argv);
 				if (uval > 255)
-					invarg("TTL must be <= 255", *argv);
+					return invarg("TTL must be <= 255", *argv);
 				ttl = uval;
 			}
 		} else if (!matches(*argv, "tos") ||
@@ -106,10 +109,11 @@ static int geneve_parse_opt(struct link_util *lu, int argc, char **argv,
 			__u32 uval;
 
 			NEXT_ARG();
-			check_duparg(&attrs, IFLA_GENEVE_TOS, "tos", *argv);
+			if (check_duparg(&attrs, IFLA_GENEVE_TOS, "tos", *argv))
+				return -1;
 			if (strcmp(*argv, "inherit") != 0) {
 				if (rtnl_dsfield_a2n(&uval, *argv))
-					invarg("bad TOS value", *argv);
+					return invarg("bad TOS value", *argv);
 				tos = uval;
 			} else
 				tos = 1;
@@ -118,49 +122,59 @@ static int geneve_parse_opt(struct link_util *lu, int argc, char **argv,
 			__u32 uval;
 
 			NEXT_ARG();
-			check_duparg(&attrs, IFLA_GENEVE_LABEL, "flowlabel",
-				     *argv);
+			if (check_duparg(&attrs, IFLA_GENEVE_LABEL, "flowlabel",
+				     *argv))
+				return -1;
 			if (get_u32(&uval, *argv, 0) ||
 			    (uval & ~LABEL_MAX_MASK))
-				invarg("invalid flowlabel", *argv);
+				return invarg("invalid flowlabel", *argv);
 			label = htonl(uval);
 		} else if (!matches(*argv, "dstport")) {
 			NEXT_ARG();
-			check_duparg(&attrs, IFLA_GENEVE_PORT, "dstport",
-				     *argv);
+			if (check_duparg(&attrs, IFLA_GENEVE_PORT, "dstport",
+				     *argv))
+				return -1;
 			if (get_u16(&dstport, *argv, 0))
-				invarg("dstport", *argv);
+				return invarg("dstport", *argv);
 		} else if (!matches(*argv, "external")) {
-			check_duparg(&attrs, IFLA_GENEVE_COLLECT_METADATA,
-				     *argv, *argv);
+			if (check_duparg(&attrs, IFLA_GENEVE_COLLECT_METADATA,
+				     *argv, *argv))
+				return -1;
 			metadata = true;
 		} else if (!matches(*argv, "noexternal")) {
-			check_duparg(&attrs, IFLA_GENEVE_COLLECT_METADATA,
-				     *argv, *argv);
+			if (check_duparg(&attrs, IFLA_GENEVE_COLLECT_METADATA,
+				     *argv, *argv))
+				return -1;
 			metadata = false;
 		} else if (!matches(*argv, "udpcsum")) {
-			check_duparg(&attrs, IFLA_GENEVE_UDP_CSUM, *argv,
-				     *argv);
+			if (check_duparg(&attrs, IFLA_GENEVE_UDP_CSUM, *argv,
+				     *argv))
+				return -1;
 			udpcsum = 1;
 		} else if (!matches(*argv, "noudpcsum")) {
-			check_duparg(&attrs, IFLA_GENEVE_UDP_CSUM, *argv,
-				     *argv);
+			if (check_duparg(&attrs, IFLA_GENEVE_UDP_CSUM, *argv,
+				     *argv))
+				return -1;
 			udpcsum = 0;
 		} else if (!matches(*argv, "udp6zerocsumtx")) {
-			check_duparg(&attrs, IFLA_GENEVE_UDP_ZERO_CSUM6_TX,
-				     *argv, *argv);
+			if (check_duparg(&attrs, IFLA_GENEVE_UDP_ZERO_CSUM6_TX,
+				     *argv, *argv))
+				return -1;
 			udp6zerocsumtx = 1;
 		} else if (!matches(*argv, "noudp6zerocsumtx")) {
-			check_duparg(&attrs, IFLA_GENEVE_UDP_ZERO_CSUM6_TX,
-				     *argv, *argv);
+			if (check_duparg(&attrs, IFLA_GENEVE_UDP_ZERO_CSUM6_TX,
+				     *argv, *argv))
+				return -1;
 			udp6zerocsumtx = 0;
 		} else if (!matches(*argv, "udp6zerocsumrx")) {
-			check_duparg(&attrs, IFLA_GENEVE_UDP_ZERO_CSUM6_RX,
-				     *argv, *argv);
+			if (check_duparg(&attrs, IFLA_GENEVE_UDP_ZERO_CSUM6_RX,
+				     *argv, *argv))
+				return -1;
 			udp6zerocsumrx = 1;
 		} else if (!matches(*argv, "noudp6zerocsumrx")) {
-			check_duparg(&attrs, IFLA_GENEVE_UDP_ZERO_CSUM6_RX,
-				     *argv, *argv);
+			if (check_duparg(&attrs, IFLA_GENEVE_UDP_ZERO_CSUM6_RX,
+				     *argv, *argv))
+				return -1;
 			udp6zerocsumrx = 0;
 		} else if (matches(*argv, "help") == 0) {
 			explain();

@@ -35,7 +35,7 @@ static int usage(void)
 	fprintf(stderr, "       ip [-all] netns exec [NAME] cmd ...\n");
 	fprintf(stderr, "       ip netns monitor\n");
 	fprintf(stderr, "       ip netns list-id\n");
-	exit(-1);
+	iprt_exit(-1);
 }
 
 /* This socket is used to get nsid */
@@ -82,7 +82,7 @@ static int ipnetns_have_nsid(void)
 
 		if (rtnl_send(&rth, &req.n, req.n.nlmsg_len) < 0) {
 			perror("request send failed");
-			exit(1);
+			iprt_exit(1);
 		}
 		rtnl_listen(&rth, ipnetns_accept_msg, NULL);
 		close(fd);
@@ -108,7 +108,8 @@ int get_netnsid_from_name(const char *name)
 	struct rtgenmsg *rthdr;
 	int len, fd;
 
-	netns_nsid_socket_init();
+	if (netns_nsid_socket_init())
+		return -1;
 
 	fd = netns_get_fd(name);
 	if (fd < 0)
@@ -175,7 +176,8 @@ char *get_name_from_nsid(int nsid)
 {
 	struct nsid_cache *c;
 
-	netns_nsid_socket_init();
+	if (netns_nsid_socket_init())
+		return NULL;
 	netns_map_init();
 
 	c = netns_map_get_by_nsid(nsid);
@@ -217,16 +219,16 @@ static void netns_map_del(struct nsid_cache *c)
 	free(c);
 }
 
-void netns_nsid_socket_init(void)
+int netns_nsid_socket_init(void)
 {
 	if (rtnsh.fd > -1 || !ipnetns_have_nsid())
-		return;
+		return 0;
 
 	if (rtnl_open(&rtnsh, 0) < 0) {
 		fprintf(stderr, "Cannot open rtnetlink\n");
-		exit(1);
+		iprt_exit(1);
 	}
-
+	return 0;
 }
 
 void netns_map_init(void)
@@ -348,14 +350,15 @@ static int netns_list_id(int argc, char **argv)
 
 	if (rtnl_wilddump_request(&rth, AF_UNSPEC, RTM_GETNSID) < 0) {
 		perror("Cannot send dump request");
-		exit(1);
+		iprt_exit(1);
 	}
 
-	new_json_obj(json);
+	if (new_json_obj(json))
+		return -1;
 	if (rtnl_dump_filter(&rth, print_nsid, stdout) < 0) {
 		delete_json_obj();
 		fprintf(stderr, "Dump terminated\n");
-		exit(1);
+		iprt_exit(1);
 	}
 	delete_json_obj();
 	return 0;
@@ -371,7 +374,8 @@ static int netns_list(int argc, char **argv)
 	if (!dir)
 		return 0;
 
-	new_json_obj(json);
+	if (new_json_obj(json))
+		return -1;
 	while ((entry = readdir(dir)) != NULL) {
 		if (strcmp(entry->d_name, ".") == 0)
 			continue;
@@ -721,7 +725,8 @@ int set_netnsid_from_name(const char *name, int nsid)
 	};
 	int fd, err = 0;
 
-	netns_nsid_socket_init();
+	if (netns_nsid_socket_init())
+		return -1;
 
 	fd = netns_get_fd(name);
 	if (fd < 0)
@@ -756,7 +761,7 @@ static int netns_set(int argc, char **argv)
 	if (strcmp(argv[1], "auto") == 0)
 		nsid = -1;
 	else if (get_unsigned(&nsid, argv[1], 0))
-		invarg("Invalid \"netnsid\" value\n", argv[1]);
+		return invarg("Invalid \"netnsid\" value\n", argv[1]);
 
 	snprintf(netns_path, sizeof(netns_path), "%s/%s", NETNS_RUN_DIR, name);
 	netns = open(netns_path, O_RDONLY | O_CLOEXEC);
@@ -818,7 +823,8 @@ static int invalid_name(const char *name)
 
 int do_netns(int argc, char **argv)
 {
-	netns_nsid_socket_init();
+	if (netns_nsid_socket_init())
+		return -1;
 
 	if (argc < 1) {
 		netns_map_init();
@@ -827,7 +833,7 @@ int do_netns(int argc, char **argv)
 
 	if (argc > 1 && invalid_name(argv[1])) {
 		fprintf(stderr, "Invalid netns name \"%s\"\n", argv[1]);
-		exit(-1);
+		iprt_exit(-1);
 	}
 
 	if ((matches(*argv, "list") == 0) || (matches(*argv, "show") == 0) ||
@@ -866,5 +872,5 @@ int do_netns(int argc, char **argv)
 		return netns_monitor(argc-1, argv+1);
 
 	fprintf(stderr, "Command \"%s\" is unknown, try \"ip netns help\".\n", *argv);
-	exit(-1);
+	iprt_exit(-1);
 }

@@ -33,14 +33,13 @@
 #include "xfrm.h"
 #include "ip_common.h"
 
-static void usage(void) __attribute__((noreturn));
 int listen_all_nsid;
 
-static void usage(void)
+static int usage(void)
 {
 	fprintf(stderr, "Usage: ip xfrm monitor [all-nsid] [ all | OBJECTS | help ]\n");
 	fprintf(stderr, "OBJECTS := { acquire | expire | SA | aevent | policy | report }\n");
-	exit(-1);
+	iprt_exit(-1);
 }
 
 static int xfrm_acquire_print(const struct sockaddr_nl *who,
@@ -382,10 +381,10 @@ int do_xfrm_monitor(int argc, char **argv)
 			lreport = 1;
 			groups = 0;
 		} else if (matches(*argv, "help") == 0) {
-			usage();
+			return usage();
 		} else {
 			fprintf(stderr, "Argument \"%s\" is unknown, try \"ip xfrm monitor help\".\n", *argv);
-			exit(-1);
+			iprt_exit(-1);
 		}
 		argc--;	argv++;
 	}
@@ -410,7 +409,7 @@ int do_xfrm_monitor(int argc, char **argv)
 		fp = fopen(file, "r");
 		if (fp == NULL) {
 			perror("Cannot fopen");
-			exit(-1);
+			iprt_exit(-1);
 		}
 		err = rtnl_from_file(fp, xfrm_accept_msg, stdout);
 		fclose(fp);
@@ -418,12 +417,12 @@ int do_xfrm_monitor(int argc, char **argv)
 	}
 
 	if (rtnl_open_byproto(&rth, groups, NETLINK_XFRM) < 0)
-		exit(1);
+		iprt_exit(1);
 	if (listen_all_nsid && rtnl_listen_all_nsid(&rth) < 0)
-		exit(1);
+		iprt_exit(1);
 
 	if (rtnl_listen(&rth, xfrm_accept_msg, (void *)stdout) < 0)
-		exit(2);
+		iprt_exit(2);
 
 	return 0;
 }

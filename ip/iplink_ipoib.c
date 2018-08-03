@@ -50,7 +50,7 @@ static int ipoib_parse_opt(struct link_util *lu, int argc, char **argv,
 		if (matches(*argv, "pkey") == 0) {
 			NEXT_ARG();
 			if (get_u16(&pkey, *argv, 0))
-				invarg("pkey is invalid", *argv);
+				return invarg("pkey is invalid", *argv);
 			addattr_l(n, 1024, IFLA_IPOIB_PKEY, &pkey, 2);
 		} else if (matches(*argv, "mode") == 0) {
 			NEXT_ARG();
@@ -64,7 +64,7 @@ static int ipoib_parse_opt(struct link_util *lu, int argc, char **argv,
 		} else if (matches(*argv, "umcast") == 0) {
 			NEXT_ARG();
 			if (get_u16(&umcast, *argv, 0))
-				invarg("umcast is invalid", *argv);
+				return invarg("umcast is invalid", *argv);
 			addattr_l(n, 1024, IFLA_IPOIB_UMCAST, &umcast, 2);
 		} else if (matches(*argv, "help") == 0) {
 			explain();

@@ -35,6 +35,7 @@
 #include <linux/if_tunnel.h>
 #include <linux/if_arp.h>
 
+#include "iprt.h"
 #include "utils.h"
 #include "tunnel.h"
 #include "json_print.h"
@@ -186,7 +187,7 @@ __be32 tnl_parse_key(const char *name, const char *key)
 		fprintf(stderr,
 			"invalid value for \"%s\": \"%s\"; it should be an unsigned integer\n",
 			name, key);
-		exit(-1);
+		iprt_exit(-1);
 	}
 	return htonl(uval);
 }

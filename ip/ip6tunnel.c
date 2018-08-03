@@ -42,9 +42,7 @@
 
 #define DEFAULT_TNL_HOP_LIMIT	(64)
 
-static void usage(void) __attribute__((noreturn));
-
-static void usage(void)
+static int usage(void)
 {
 	fprintf(stderr, "Usage: ip -f inet6 tunnel { add | change | del | show } [ NAME ]\n");
 	fprintf(stderr, "          [ mode { ip6ip6 | ipip6 | ip6gre | vti6 | any } ]\n");
@@ -64,7 +62,7 @@ static void usage(void)
 	fprintf(stderr, "       TCLASS    := { 0x0..0xff | inherit }\n");
 	fprintf(stderr, "       FLOWLABEL := { 0x0..0xfffff | inherit }\n");
 	fprintf(stderr, "       KEY       := { DOTTED_QUAD | NUMBER }\n");
-	exit(-1);
+	iprt_exit(-1);
 }
 
 static void print_tunnel(const void *t)
@@ -168,7 +166,7 @@ static int parse_args(int argc, char **argv, int cmd, struct ip6_tnl_parm2 *p)
 				p->proto = 0;
 			else {
 				fprintf(stderr, "Unknown tunnel mode \"%s\"\n", *argv);
-				exit(-1);
+				iprt_exit(-1);
 			}
 		} else if (strcmp(*argv, "remote") == 0) {
 			inet_prefix raddr;
@@ -193,7 +191,7 @@ static int parse_args(int argc, char **argv, int cmd, struct ip6_tnl_parm2 *p)
 				__u8 uval;
 
 				if (get_u8(&uval, *argv, 0) < -1)
-					invarg("invalid ELIM", *argv);
+					return invarg("invalid ELIM", *argv);
 				p->encap_limit = uval;
 				p->flags &= ~IP6_TNL_F_IGN_ENCAP_LIMIT;
 			}
@@ -204,7 +202,7 @@ static int parse_args(int argc, char **argv, int cmd, struct ip6_tnl_parm2 *p)
 
 			NEXT_ARG();
 			if (get_u8(&uval, *argv, 0))
-				invarg("invalid TTL", *argv);
+				return invarg("invalid TTL", *argv);
 			p->hop_limit = uval;
 		} else if (strcmp(*argv, "tclass") == 0 ||
 			   strcmp(*argv, "tc") == 0 ||
@@ -218,7 +216,7 @@ static int parse_args(int argc, char **argv, int cmd, struct ip6_tnl_parm2 *p)
 				p->flags |= IP6_TNL_F_USE_ORIG_TCLASS;
 			else {
 				if (get_u8(&uval, *argv, 16))
-					invarg("invalid TClass", *argv);
+					return invarg("invalid TClass", *argv);
 				p->flowinfo |= htonl((__u32)uval << 20) & IP6_FLOWINFO_TCLASS;
 				p->flags &= ~IP6_TNL_F_USE_ORIG_TCLASS;
 			}
@@ -232,16 +230,16 @@ static int parse_args(int argc, char **argv, int cmd, struct ip6_tnl_parm2 *p)
 				p->flags |= IP6_TNL_F_USE_ORIG_FLOWLABEL;
 			else {
 				if (get_u32(&uval, *argv, 16))
-					invarg("invalid Flowlabel", *argv);
+					return invarg("invalid Flowlabel", *argv);
 				if (uval > 0xFFFFF)
-					invarg("invalid Flowlabel", *argv);
+					return invarg("invalid Flowlabel", *argv);
 				p->flowinfo |= htonl(uval) & IP6_FLOWINFO_FLOWLABEL;
 				p->flags &= ~IP6_TNL_F_USE_ORIG_FLOWLABEL;
 			}
 		} else if (strcmp(*argv, "dscp") == 0) {
 			NEXT_ARG();
 			if (strcmp(*argv, "inherit") != 0)
-				invarg("not inherit", *argv);
+				return invarg("not inherit", *argv);
 			p->flags |= IP6_TNL_F_RCV_DSCP_COPY;
 		} else if (strcmp(*argv, "allow-localremote") == 0) {
 			p->flags |= IP6_TNL_F_ALLOW_LOCAL_REMOTE;
@@ -278,11 +276,11 @@ static int parse_args(int argc, char **argv, int cmd, struct ip6_tnl_parm2 *p)
 			if (strcmp(*argv, "name") == 0) {
 				NEXT_ARG();
 			} else if (matches(*argv, "help") == 0)
-				usage();
+				return usage();
 			if (p->name[0])
-				duparg2("name", *argv);
+				return duparg2("name", *argv);
 			if (get_ifname(p->name, *argv))
-				invarg("\"name\" not a valid ifname", *argv);
+				return invarg("\"name\" not a valid ifname", *argv);
 			if (cmd == SIOCCHGTUNNEL && count == 0) {
 				struct ip6_tnl_parm2 old_p = {};
 
@@ -422,7 +420,7 @@ int do_ip6tunnel(int argc, char **argv)
 		break;
 	default:
 		fprintf(stderr, "Unsupported protocol family: %d\n", preferred_family);
-		exit(-1);
+		iprt_exit(-1);
 	}
 
 	if (argc > 0) {
@@ -437,10 +435,10 @@ int do_ip6tunnel(int argc, char **argv)
 		    matches(*argv, "list") == 0)
 			return do_show(argc - 1, argv + 1);
 		if (matches(*argv, "help") == 0)
-			usage();
+			return usage();
 	} else
 		return do_show(0, NULL);
 
 	fprintf(stderr, "Command \"%s\" is unknown, try \"ip -f inet6 tunnel help\".\n", *argv);
-	exit(-1);
+	iprt_exit(-1);
 }

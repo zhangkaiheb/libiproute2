@@ -41,9 +41,7 @@ bool do_all;
 
 struct rtnl_handle rth = { .fd = -1 };
 
-static void usage(void) __attribute__((noreturn));
-
-static void usage(void)
+static int usage(void)
 {
 	fprintf(stderr,
 "Usage: ip [ OPTIONS ] OBJECT { COMMAND | help }\n"
@@ -59,7 +57,7 @@ static void usage(void)
 "                    -l[oops] { maximum-addr-flush-attempts } | -br[ief] |\n"
 "                    -o[neline] | -t[imestamp] | -ts[hort] | -b[atch] [filename] |\n"
 "                    -rc[vbuf] [size] | -n[etns] name | -a[ll] | -c[olor]}\n");
-	exit(-1);
+	iprt_exit(-1);
 }
 
 static int do_help(int argc, char **argv)
@@ -207,19 +205,19 @@ int main(int argc, char **argv)
 			argc--;
 			argv++;
 			if (argc <= 1)
-				usage();
+				return usage();
 			max_flush_loops = atoi(argv[1]);
 		} else if (matches(opt, "-family") == 0) {
 			argc--;
 			argv++;
 			if (argc <= 1)
-				usage();
+				return usage();
 			if (strcmp(argv[1], "help") == 0)
-				usage();
+				return usage();
 			else
 				preferred_family = read_family(argv[1]);
 			if (preferred_family == AF_UNSPEC)
-				invarg("invalid protocol family", argv[1]);
+				return invarg("invalid protocol family", argv[1]);
 		} else if (strcmp(opt, "-4") == 0) {
 			preferred_family = AF_INET;
 		} else if (strcmp(opt, "-6") == 0) {
@@ -255,14 +253,14 @@ int main(int argc, char **argv)
 			++timestamp_short;
 		} else if (matches(opt, "-Version") == 0) {
 			printf("ip utility, iproute2-ss%s\n", SNAPSHOT);
-			exit(0);
+			iprt_exit(0);
 		} else if (matches(opt, "-force") == 0) {
 			++force;
 		} else if (matches(opt, "-batch") == 0) {
 			argc--;
 			argv++;
 			if (argc <= 1)
-				usage();
+				return usage();
 			batch_file = argv[1];
 		} else if (matches(opt, "-brief") == 0) {
 			++brief;
@@ -276,28 +274,28 @@ int main(int argc, char **argv)
 			argc--;
 			argv++;
 			if (argc <= 1)
-				usage();
+				return usage();
 			if (get_unsigned(&size, argv[1], 0)) {
 				fprintf(stderr, "Invalid rcvbuf size '%s'\n",
 					argv[1]);
-				exit(-1);
+				iprt_exit(-1);
 			}
 			rcvbuf = size;
 		} else if (matches(opt, "-color") == 0) {
 			++color;
 		} else if (matches(opt, "-help") == 0) {
-			usage();
+			return usage();
 		} else if (matches(opt, "-netns") == 0) {
 			NEXT_ARG();
 			if (netns_switch(argv[1]))
-				exit(-1);
+				iprt_exit(-1);
 		} else if (matches(opt, "-all") == 0) {
 			do_all = true;
 		} else {
 			fprintf(stderr,
 				"Option \"%s\" is unknown, try \"ip -help\".\n",
 				opt);
-			exit(-1);
+			iprt_exit(-1);
 		}
 		argc--;	argv++;
 	}
@@ -311,7 +309,7 @@ int main(int argc, char **argv)
 		return batch(batch_file);
 
 	if (rtnl_open(&rth, 0) < 0)
-		exit(1);
+		iprt_exit(1);
 
 	if (strlen(basename) > 2)
 		return do_cmd(basename+2, argc, argv);
@@ -320,5 +318,5 @@ int main(int argc, char **argv)
 		return do_cmd(argv[1], argc-1, argv+1);
 
 	rtnl_close(&rth);
-	usage();
+	return usage();
 }

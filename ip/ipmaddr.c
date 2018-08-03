@@ -35,13 +35,11 @@ static struct {
 	int  family;
 } filter;
 
-static void usage(void) __attribute__((noreturn));
-
-static void usage(void)
+static int usage(void)
 {
 	fprintf(stderr, "Usage: ip maddr [ add | del ] MULTIADDR dev STRING\n");
 	fprintf(stderr, "       ip maddr show [ dev STRING ]\n");
-	exit(-1);
+	iprt_exit(-1);
 }
 
 static int parse_hex(char *str, unsigned char *addr, size_t size)
@@ -223,11 +221,12 @@ static void print_maddr(FILE *fp, struct ma_info *list)
 	close_json_object();
 }
 
-static void print_mlist(FILE *fp, struct ma_info *list)
+static int print_mlist(FILE *fp, struct ma_info *list)
 {
 	int cur_index = 0;
 
-	new_json_obj(json);
+	if (new_json_obj(json))
+		return -1;
 	for (; list; list = list->next) {
 
 		if (list->index != cur_index || oneline) {
@@ -254,6 +253,8 @@ static void print_mlist(FILE *fp, struct ma_info *list)
 	}
 
 	delete_json_obj();
+
+	return 0;
 }
 
 static int multiaddr_list(int argc, char **argv)
@@ -268,9 +269,9 @@ static int multiaddr_list(int argc, char **argv)
 			if (strcmp(*argv, "dev") == 0) {
 				NEXT_ARG();
 			} else if (matches(*argv, "help") == 0)
-				usage();
+				return usage();
 			if (filter.dev)
-				duparg2("dev", *argv);
+				return duparg2("dev", *argv);
 			filter.dev = *argv;
 		}
 		argv++; argc--;
@@ -300,42 +301,42 @@ static int multiaddr_modify(int cmd, int argc, char **argv)
 		if (strcmp(*argv, "dev") == 0) {
 			NEXT_ARG();
 			if (ifr.ifr_name[0])
-				duparg("dev", *argv);
+				return duparg("dev", *argv);
 			if (get_ifname(ifr.ifr_name, *argv))
-				invarg("\"dev\" not a valid ifname", *argv);
+				return invarg("\"dev\" not a valid ifname", *argv);
 		} else {
 			if (matches(*argv, "address") == 0) {
 				NEXT_ARG();
 			}
 			if (matches(*argv, "help") == 0)
-				usage();
+				return usage();
 			if (ifr.ifr_hwaddr.sa_data[0])
-				duparg("address", *argv);
+				return duparg("address", *argv);
 			if (ll_addr_a2n(ifr.ifr_hwaddr.sa_data,
 					14, *argv) < 0) {
 				fprintf(stderr, "Error: \"%s\" is not a legal ll address.\n", *argv);
-				exit(1);
+				iprt_exit(1);
 			}
 		}
 		argc--; argv++;
 	}
 	if (ifr.ifr_name[0] == 0) {
 		fprintf(stderr, "Not enough information: \"dev\" is required.\n");
-		exit(-1);
+		iprt_exit(-1);
 	}
 
 	fd = socket(AF_INET, SOCK_DGRAM, 0);
 	if (fd < 0) {
 		perror("Cannot create socket");
-		exit(1);
+		iprt_exit(1);
 	}
 	if (ioctl(fd, cmd, (char *)&ifr) != 0) {
 		perror("ioctl");
-		exit(1);
+		iprt_exit(1);
 	}
 	close(fd);
 
-	exit(0);
+	iprt_exit(0);
 }
 
 
@@ -351,7 +352,7 @@ int do_multiaddr(int argc, char **argv)
 	    || matches(*argv, "lst") == 0)
 		return multiaddr_list(argc-1, argv+1);
 	if (matches(*argv, "help") == 0)
-		usage();
+		return usage();
 	fprintf(stderr, "Command \"%s\" is unknown, try \"ip maddr help\".\n", *argv);
-	exit(-1);
+	iprt_exit(-1);
 }

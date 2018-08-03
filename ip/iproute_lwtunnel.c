@@ -55,7 +55,7 @@ static const char *format_encap_type(int type)
 	}
 }
 
-static void encap_type_usage(void)
+static int encap_type_usage(void)
 {
 	int i;
 
@@ -65,7 +65,7 @@ static void encap_type_usage(void)
 		fprintf(stderr, "%s %s\n", format_encap_type(i),
 			i == 1 ? "TYPE := " : "      ");
 
-	exit(-1);
+	iprt_exit(-1);
 }
 
 static int read_encap_type(const char *name)
@@ -85,7 +85,7 @@ static int read_encap_type(const char *name)
 	else if (strcmp(name, "seg6local") == 0)
 		return LWTUNNEL_ENCAP_SEG6_LOCAL;
 	else if (strcmp(name, "help") == 0)
-		encap_type_usage();
+		return encap_type_usage();
 
 	return LWTUNNEL_ENCAP_NONE;
 }
@@ -500,23 +500,23 @@ static int parse_encap_seg6(struct rtattr *rta, size_t len, int *argcp,
 		if (strcmp(*argv, "mode") == 0) {
 			NEXT_ARG();
 			if (mode_ok++)
-				duparg2("mode", *argv);
+				return duparg2("mode", *argv);
 			encap = read_seg6mode_type(*argv);
 			if (encap < 0)
-				invarg("\"mode\" value is invalid\n", *argv);
+				return invarg("\"mode\" value is invalid\n", *argv);
 		} else if (strcmp(*argv, "segs") == 0) {
 			NEXT_ARG();
 			if (segs_ok++)
-				duparg2("segs", *argv);
+				return duparg2("segs", *argv);
 			if (encap == -1)
-				invarg("\"segs\" provided before \"mode\"\n",
+				return invarg("\"segs\" provided before \"mode\"\n",
 				       *argv);
 
 			strlcpy(segbuf, *argv, 1024);
 		} else if (strcmp(*argv, "hmac") == 0) {
 			NEXT_ARG();
 			if (hmac_ok++)
-				duparg2("hmac", *argv);
+				return duparg2("hmac", *argv);
 			get_u32(&hmac, *argv, 0);
 		} else {
 			break;
@@ -563,57 +563,57 @@ static int parse_encap_seg6local(struct rtattr *rta, size_t len, int *argcp,
 		if (strcmp(*argv, "action") == 0) {
 			NEXT_ARG();
 			if (action_ok++)
-				duparg2("action", *argv);
+				return duparg2("action", *argv);
 			action = read_action_type(*argv);
 			if (!action)
-				invarg("\"action\" value is invalid\n", *argv);
+				return invarg("\"action\" value is invalid\n", *argv);
 			rta_addattr32(rta, len, SEG6_LOCAL_ACTION, action);
 		} else if (strcmp(*argv, "table") == 0) {
 			NEXT_ARG();
 			if (table_ok++)
-				duparg2("table", *argv);
+				return duparg2("table", *argv);
 			get_u32(&table, *argv, 0);
 			rta_addattr32(rta, len, SEG6_LOCAL_TABLE, table);
 		} else if (strcmp(*argv, "nh4") == 0) {
 			NEXT_ARG();
 			if (nh4_ok++)
-				duparg2("nh4", *argv);
+				return duparg2("nh4", *argv);
 			get_addr(&addr, *argv, AF_INET);
 			rta_addattr_l(rta, len, SEG6_LOCAL_NH4, &addr.data,
 				      addr.bytelen);
 		} else if (strcmp(*argv, "nh6") == 0) {
 			NEXT_ARG();
 			if (nh6_ok++)
-				duparg2("nh6", *argv);
+				return duparg2("nh6", *argv);
 			get_addr(&addr, *argv, AF_INET6);
 			rta_addattr_l(rta, len, SEG6_LOCAL_NH6, &addr.data,
 				      addr.bytelen);
 		} else if (strcmp(*argv, "iif") == 0) {
 			NEXT_ARG();
 			if (iif_ok++)
-				duparg2("iif", *argv);
+				return duparg2("iif", *argv);
 			iif = ll_name_to_index(*argv);
 			if (!iif)
-				exit(nodev(*argv));
+				iprt_exit(nodev(*argv));
 			rta_addattr32(rta, len, SEG6_LOCAL_IIF, iif);
 		} else if (strcmp(*argv, "oif") == 0) {
 			NEXT_ARG();
 			if (oif_ok++)
-				duparg2("oif", *argv);
+				return duparg2("oif", *argv);
 			oif = ll_name_to_index(*argv);
 			if (!oif)
-				exit(nodev(*argv));
+				iprt_exit(nodev(*argv));
 			rta_addattr32(rta, len, SEG6_LOCAL_OIF, oif);
 		} else if (strcmp(*argv, "srh") == 0) {
 			NEXT_ARG();
 			if (srh_ok++)
-				duparg2("srh", *argv);
+				return duparg2("srh", *argv);
 			if (strcmp(*argv, "segs") != 0)
-				invarg("missing \"segs\" attribute for srh\n",
+				return invarg("missing \"segs\" attribute for srh\n",
 					*argv);
 			NEXT_ARG();
 			if (segs_ok++)
-				duparg2("segs", *argv);
+				return duparg2("segs", *argv);
 			strncpy(segbuf, *argv, 1024);
 			segbuf[1023] = 0;
 			if (!NEXT_ARG_OK())
@@ -622,7 +622,7 @@ static int parse_encap_seg6local(struct rtattr *rta, size_t len, int *argcp,
 			if (strcmp(*argv, "hmac") == 0) {
 				NEXT_ARG();
 				if (hmac_ok++)
-					duparg2("hmac", *argv);
+					return duparg2("hmac", *argv);
 				get_u32(&hmac, *argv, 0);
 			} else {
 				continue;
@@ -635,7 +635,7 @@ static int parse_encap_seg6local(struct rtattr *rta, size_t len, int *argcp,
 
 	if (!action) {
 		fprintf(stderr, "Missing action type\n");
-		exit(-1);
+		iprt_exit(-1);
 	}
 
 	if (srh_ok) {
@@ -666,7 +666,7 @@ static int parse_encap_mpls(struct rtattr *rta, size_t len,
 		fprintf(stderr,
 			"Error: an inet address is expected rather than \"%s\".\n",
 			*argv);
-		exit(1);
+		iprt_exit(1);
 	}
 
 	rta_addattr_l(rta, len, MPLS_IPTUNNEL_DST, &addr.data,
@@ -681,9 +681,9 @@ static int parse_encap_mpls(struct rtattr *rta, size_t len,
 
 			NEXT_ARG();
 			if (ttl_ok++)
-				duparg2("ttl", *argv);
+				return duparg2("ttl", *argv);
 			if (get_u8(&ttl, *argv, 0))
-				invarg("\"ttl\" value is invalid\n", *argv);
+				return invarg("\"ttl\" value is invalid\n", *argv);
 			rta_addattr8(rta, len, MPLS_IPTUNNEL_TTL, ttl);
 		} else {
 			break;
@@ -714,16 +714,16 @@ static int parse_encap_ip(struct rtattr *rta, size_t len,
 
 			NEXT_ARG();
 			if (id_ok++)
-				duparg2("id", *argv);
+				return duparg2("id", *argv);
 			if (get_be64(&id, *argv, 0))
-				invarg("\"id\" value is invalid\n", *argv);
+				return invarg("\"id\" value is invalid\n", *argv);
 			rta_addattr64(rta, len, LWTUNNEL_IP_ID, id);
 		} else if (strcmp(*argv, "dst") == 0) {
 			inet_prefix addr;
 
 			NEXT_ARG();
 			if (dst_ok++)
-				duparg2("dst", *argv);
+				return duparg2("dst", *argv);
 			get_addr(&addr, *argv, AF_INET);
 			rta_addattr_l(rta, len, LWTUNNEL_IP_DST,
 				      &addr.data, addr.bytelen);
@@ -732,18 +732,18 @@ static int parse_encap_ip(struct rtattr *rta, size_t len,
 
 			NEXT_ARG();
 			if (tos_ok++)
-				duparg2("tos", *argv);
+				return duparg2("tos", *argv);
 			if (rtnl_dsfield_a2n(&tos, *argv))
-				invarg("\"tos\" value is invalid\n", *argv);
+				return invarg("\"tos\" value is invalid\n", *argv);
 			rta_addattr8(rta, len, LWTUNNEL_IP_TOS, tos);
 		} else if (strcmp(*argv, "ttl") == 0) {
 			__u8 ttl;
 
 			NEXT_ARG();
 			if (ttl_ok++)
-				duparg2("ttl", *argv);
+				return duparg2("ttl", *argv);
 			if (get_u8(&ttl, *argv, 0))
-				invarg("\"ttl\" value is invalid\n", *argv);
+				return invarg("\"ttl\" value is invalid\n", *argv);
 			rta_addattr8(rta, len, LWTUNNEL_IP_TTL, ttl);
 		} else {
 			break;
@@ -770,7 +770,7 @@ static int parse_encap_ila(struct rtattr *rta, size_t len,
 
 	if (get_addr64(&locator, *argv) < 0) {
 		fprintf(stderr, "Bad locator: %s\n", *argv);
-		exit(1);
+		iprt_exit(1);
 	}
 
 	argc--; argv++;
@@ -785,7 +785,7 @@ static int parse_encap_ila(struct rtattr *rta, size_t len,
 
 			csum_mode = ila_csum_name2mode(*argv);
 			if (csum_mode < 0)
-				invarg("\"csum-mode\" value is invalid\n",
+				return invarg("\"csum-mode\" value is invalid\n",
 				       *argv);
 
 			rta_addattr8(rta, 1024, ILA_ATTR_CSUM_MODE,
@@ -799,7 +799,7 @@ static int parse_encap_ila(struct rtattr *rta, size_t len,
 
 			ident_type = ila_ident_name2type(*argv);
 			if (ident_type < 0)
-				invarg("\"ident-type\" value is invalid\n",
+				return invarg("\"ident-type\" value is invalid\n",
 				       *argv);
 
 			rta_addattr8(rta, 1024, ILA_ATTR_IDENT_TYPE,
@@ -813,7 +813,7 @@ static int parse_encap_ila(struct rtattr *rta, size_t len,
 
 			hook_type = ila_hook_name2type(*argv);
 			if (hook_type < 0)
-				invarg("\"hook-type\" value is invalid\n",
+				return invarg("\"hook-type\" value is invalid\n",
 				       *argv);
 
 			rta_addattr8(rta, 1024, ILA_ATTR_HOOK_TYPE,
@@ -848,16 +848,16 @@ static int parse_encap_ip6(struct rtattr *rta, size_t len,
 
 			NEXT_ARG();
 			if (id_ok++)
-				duparg2("id", *argv);
+				return duparg2("id", *argv);
 			if (get_be64(&id, *argv, 0))
-				invarg("\"id\" value is invalid\n", *argv);
+				return invarg("\"id\" value is invalid\n", *argv);
 			rta_addattr64(rta, len, LWTUNNEL_IP6_ID, id);
 		} else if (strcmp(*argv, "dst") == 0) {
 			inet_prefix addr;
 
 			NEXT_ARG();
 			if (dst_ok++)
-				duparg2("dst", *argv);
+				return duparg2("dst", *argv);
 			get_addr(&addr, *argv, AF_INET6);
 			rta_addattr_l(rta, len, LWTUNNEL_IP6_DST,
 				      &addr.data, addr.bytelen);
@@ -866,18 +866,18 @@ static int parse_encap_ip6(struct rtattr *rta, size_t len,
 
 			NEXT_ARG();
 			if (tos_ok++)
-				duparg2("tc", *argv);
+				return duparg2("tc", *argv);
 			if (rtnl_dsfield_a2n(&tc, *argv))
-				invarg("\"tc\" value is invalid\n", *argv);
+				return invarg("\"tc\" value is invalid\n", *argv);
 			rta_addattr8(rta, len, LWTUNNEL_IP6_TC, tc);
 		} else if (strcmp(*argv, "hoplimit") == 0) {
 			__u8 hoplimit;
 
 			NEXT_ARG();
 			if (ttl_ok++)
-				duparg2("hoplimit", *argv);
+				return duparg2("hoplimit", *argv);
 			if (get_u8(&hoplimit, *argv, 0))
-				invarg("\"hoplimit\" value is invalid\n",
+				return invarg("\"hoplimit\" value is invalid\n",
 				       *argv);
 			rta_addattr8(rta, len, LWTUNNEL_IP6_HOPLIMIT, hoplimit);
 		} else {
@@ -945,11 +945,11 @@ static int lwt_parse_bpf(struct rtattr *rta, size_t len,
 	return 0;
 }
 
-static void lwt_bpf_usage(void)
+static int lwt_bpf_usage(void)
 {
 	fprintf(stderr, "Usage: ip route ... encap bpf [ in BPF ] [ out BPF ] [ xmit BPF ] [...]\n");
 	fprintf(stderr, "BPF := obj FILE [ section NAME ] [ verbose ]\n");
-	exit(-1);
+	iprt_exit(-1);
 }
 
 static int parse_encap_bpf(struct rtattr *rta, size_t len, int *argcp,
@@ -980,13 +980,13 @@ static int parse_encap_bpf(struct rtattr *rta, size_t len, int *argcp,
 
 			NEXT_ARG();
 			if (get_unsigned(&headroom, *argv, 0) || headroom == 0)
-				invarg("headroom is invalid\n", *argv);
+				return invarg("headroom is invalid\n", *argv);
 			if (!headroom_set)
 				rta_addattr32(rta, 1024, LWT_BPF_XMIT_HEADROOM,
 					      headroom);
 			headroom_set = 1;
 		} else if (strcmp(*argv, "help") == 0) {
-			lwt_bpf_usage();
+			return lwt_bpf_usage();
 		} else {
 			break;
 		}
@@ -1013,13 +1013,13 @@ int lwt_parse_encap(struct rtattr *rta, size_t len, int *argcp, char ***argvp)
 	NEXT_ARG();
 	type = read_encap_type(*argv);
 	if (!type)
-		invarg("\"encap type\" value is invalid\n", *argv);
+		return invarg("\"encap type\" value is invalid\n", *argv);
 
 	NEXT_ARG();
 	if (argc <= 1) {
 		fprintf(stderr,
 			"Error: unexpected end of line after \"encap\"\n");
-		exit(-1);
+		iprt_exit(-1);
 	}
 
 	nest = rta_nest(rta, 1024, RTA_ENCAP);
@@ -1038,7 +1038,7 @@ int lwt_parse_encap(struct rtattr *rta, size_t len, int *argcp, char ***argvp)
 		break;
 	case LWTUNNEL_ENCAP_BPF:
 		if (parse_encap_bpf(rta, len, &argc, &argv) < 0)
-			exit(-1);
+			iprt_exit(-1);
 		break;
 	case LWTUNNEL_ENCAP_SEG6:
 		parse_encap_seg6(rta, len, &argc, &argv);

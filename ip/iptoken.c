@@ -34,12 +34,10 @@ struct rtnl_dump_args {
 	int ifindex;
 };
 
-static void usage(void) __attribute__((noreturn));
-
-static void usage(void)
+static int usage(void)
 {
 	fprintf(stderr, "Usage: ip token [ list | set | del | get ] [ TOKEN ] [ dev DEV ]\n");
-	exit(-1);
+	iprt_exit(-1);
 }
 
 static int print_token(const struct sockaddr_nl *who, struct nlmsghdr *n, void *arg)
@@ -103,7 +101,7 @@ static int iptoken_list(int argc, char **argv)
 		if (strcmp(*argv, "dev") == 0) {
 			NEXT_ARG();
 			if ((da.ifindex = ll_name_to_index(*argv)) == 0)
-				invarg("dev is invalid\n", *argv);
+				return invarg("dev is invalid\n", *argv);
 			break;
 		}
 		argc--; argv++;
@@ -114,7 +112,8 @@ static int iptoken_list(int argc, char **argv)
 		return -1;
 	}
 
-	new_json_obj(json);
+	if (new_json_obj(json))
+		return -1;
 	if (rtnl_dump_filter(&rth, print_token, &da) < 0) {
 		delete_json_obj();
 		fprintf(stderr, "Dump terminated\n");
@@ -147,12 +146,12 @@ static int iptoken_set(int argc, char **argv, bool delete)
 			if (!have_dev) {
 				if ((req.ifi.ifi_index =
 				     ll_name_to_index(*argv)) == 0)
-					invarg("dev is invalid\n", *argv);
+					return invarg("dev is invalid\n", *argv);
 				have_dev = true;
 			}
 		} else {
 			if (matches(*argv, "help") == 0)
-				usage();
+				return usage();
 			if (!have_token) {
 				get_prefix(&addr, *argv, req.ifi.ifi_family);
 				have_token = true;
@@ -201,8 +200,8 @@ int do_iptoken(int argc, char **argv)
 	} else if (matches(argv[0], "get") == 0) {
 		return iptoken_list(argc - 1, argv + 1);
 	} else if (matches(argv[0], "help") == 0)
-		usage();
+		return usage();
 
 	fprintf(stderr, "Command \"%s\" is unknown, try \"ip token help\".\n", *argv);
-	exit(-1);
+	iprt_exit(-1);
 }

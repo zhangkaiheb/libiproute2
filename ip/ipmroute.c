@@ -31,9 +31,7 @@
 #include "ip_common.h"
 #include "json_print.h"
 
-static void usage(void) __attribute__((noreturn));
-
-static void usage(void)
+static int usage(void)
 {
 	fprintf(stderr, "Usage: ip mroute show [ [ to ] PREFIX ] [ from PREFIX ] [ iif DEVICE ]\n");
 	fprintf(stderr, "                      [ table TABLE_ID ]\n");
@@ -41,7 +39,7 @@ static void usage(void)
 #if 0
 	fprintf(stderr, "Usage: ip mroute [ add | del ] DESTINATION from SOURCE [ iif DEVICE ] [ oif DEVICE ]\n");
 #endif
-	exit(-1);
+	iprt_exit(-1);
 }
 
 struct rtfilter {
@@ -247,9 +245,9 @@ static int mroute_list(int argc, char **argv)
 				if (strcmp(*argv, "all") == 0) {
 					filter.tb = 0;
 				} else if (strcmp(*argv, "help") == 0) {
-					usage();
+					return usage();
 				} else {
-					invarg("table id value is invalid\n", *argv);
+					return invarg("table id value is invalid\n", *argv);
 				}
 			} else
 				filter.tb = tid;
@@ -259,15 +257,15 @@ static int mroute_list(int argc, char **argv)
 		} else if (matches(*argv, "from") == 0) {
 			NEXT_ARG();
 			if (get_prefix(&filter.msrc, *argv, family))
-				invarg("from value is invalid\n", *argv);
+				return invarg("from value is invalid\n", *argv);
 		} else {
 			if (strcmp(*argv, "to") == 0) {
 				NEXT_ARG();
 			}
 			if (matches(*argv, "help") == 0)
-				usage();
+				return usage();
 			if (get_prefix(&filter.mdst, *argv, family))
-				invarg("to value is invalid\n", *argv);
+				return invarg("to value is invalid\n", *argv);
 		}
 		argc--; argv++;
 	}
@@ -288,11 +286,12 @@ static int mroute_list(int argc, char **argv)
 		return 1;
 	}
 
-	new_json_obj(json);
+	if (new_json_obj(json))
+		return -1;
 	if (rtnl_dump_filter(&rth, print_mroute, stdout) < 0) {
 		delete_json_obj();
 		fprintf(stderr, "Dump terminated\n");
-		exit(1);
+		iprt_exit(1);
 	}
 	delete_json_obj();
 
@@ -315,7 +314,7 @@ int do_multiroute(int argc, char **argv)
 	    || matches(*argv, "lst") == 0)
 		return mroute_list(argc-1, argv+1);
 	if (matches(*argv, "help") == 0)
-		usage();
+		return usage();
 	fprintf(stderr, "Command \"%s\" is unknown, try \"ip mroute help\".\n", *argv);
-	exit(-1);
+	iprt_exit(-1);
 }

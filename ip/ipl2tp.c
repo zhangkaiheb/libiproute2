@@ -478,10 +478,11 @@ static int get_session(struct l2tp_data *p)
 	if (rtnl_send(&genl_rth, &req, req.n.nlmsg_len) < 0)
 		return -2;
 
-	new_json_obj(json);
+	if (new_json_obj(json))
+		return -1;
 	if (rtnl_dump_filter(&genl_rth, session_nlmsg, p) < 0) {
 		fprintf(stderr, "Dump terminated\n");
-		exit(1);
+		iprt_exit(1);
 	}
 	delete_json_obj();
 	fflush(stdout);
@@ -514,10 +515,11 @@ static int get_tunnel(struct l2tp_data *p)
 	if (rtnl_send(&genl_rth, &req, req.n.nlmsg_len) < 0)
 		return -2;
 
-	new_json_obj(json);
+	if (new_json_obj(json))
+		return -1;
 	if (rtnl_dump_filter(&genl_rth, tunnel_nlmsg, p) < 0) {
 		fprintf(stderr, "Dump terminated\n");
-		exit(1);
+		iprt_exit(1);
 	}
 	delete_json_obj();
 	fflush(stdout);
@@ -529,9 +531,7 @@ static int get_tunnel(struct l2tp_data *p)
  * Command parser
  *****************************************************************************/
 
-static void usage(void) __attribute__((noreturn));
-
-static void usage(void)
+static int usage(void)
 {
 	fprintf(stderr, "Usage: ip l2tp add tunnel\n"
 		"          remote ADDR local ADDR\n"
@@ -559,7 +559,7 @@ static void usage(void)
 		"       HEXSTR := { 8 or 16 hex digits (4 / 8 bytes) }\n"
 		"       L2SPEC := { none | default }\n");
 
-	exit(-1);
+	iprt_exit(-1);
 }
 
 static int parse_args(int argc, char **argv, int cmd, struct l2tp_parm *p)
@@ -567,7 +567,7 @@ static int parse_args(int argc, char **argv, int cmd, struct l2tp_parm *p)
 	memset(p, 0, sizeof(*p));
 
 	if (argc == 0)
-		usage();
+		return usage();
 
 	/* Defaults */
 	p->l2spec_type = L2TP_L2SPECTYPE_DEFAULT;
@@ -584,28 +584,28 @@ static int parse_args(int argc, char **argv, int cmd, struct l2tp_parm *p)
 				p->encap = L2TP_ENCAPTYPE_UDP;
 			} else {
 				fprintf(stderr, "Unknown tunnel encapsulation \"%s\"\n", *argv);
-				exit(-1);
+				iprt_exit(-1);
 			}
 		} else if (strcmp(*argv, "name") == 0) {
 			NEXT_ARG();
 			if (check_ifname(*argv))
-				invarg("\"name\" not a valid ifname", *argv);
+				return invarg("\"name\" not a valid ifname", *argv);
 			p->ifname = *argv;
 		} else if (strcmp(*argv, "remote") == 0) {
 			NEXT_ARG();
 			if (get_addr(&p->peer_ip, *argv, AF_UNSPEC))
-				invarg("invalid remote address\n", *argv);
+				return invarg("invalid remote address\n", *argv);
 		} else if (strcmp(*argv, "local") == 0) {
 			NEXT_ARG();
 			if (get_addr(&p->local_ip, *argv, AF_UNSPEC))
-				invarg("invalid local address\n", *argv);
+				return invarg("invalid local address\n", *argv);
 		} else if ((strcmp(*argv, "tunnel_id") == 0) ||
 			   (strcmp(*argv, "tid") == 0)) {
 			__u32 uval;
 
 			NEXT_ARG();
 			if (get_u32(&uval, *argv, 0))
-				invarg("invalid ID\n", *argv);
+				return invarg("invalid ID\n", *argv);
 			p->tunnel_id = uval;
 		} else if ((strcmp(*argv, "peer_tunnel_id") == 0) ||
 			   (strcmp(*argv, "ptid") == 0)) {
@@ -613,7 +613,7 @@ static int parse_args(int argc, char **argv, int cmd, struct l2tp_parm *p)
 
 			NEXT_ARG();
 			if (get_u32(&uval, *argv, 0))
-				invarg("invalid ID\n", *argv);
+				return invarg("invalid ID\n", *argv);
 			p->peer_tunnel_id = uval;
 		} else if ((strcmp(*argv, "session_id") == 0) ||
 			   (strcmp(*argv, "sid") == 0)) {
@@ -621,7 +621,7 @@ static int parse_args(int argc, char **argv, int cmd, struct l2tp_parm *p)
 
 			NEXT_ARG();
 			if (get_u32(&uval, *argv, 0))
-				invarg("invalid ID\n", *argv);
+				return invarg("invalid ID\n", *argv);
 			p->session_id = uval;
 		} else if ((strcmp(*argv, "peer_session_id") == 0) ||
 			   (strcmp(*argv, "psid") == 0)) {
@@ -629,21 +629,21 @@ static int parse_args(int argc, char **argv, int cmd, struct l2tp_parm *p)
 
 			NEXT_ARG();
 			if (get_u32(&uval, *argv, 0))
-				invarg("invalid ID\n", *argv);
+				return invarg("invalid ID\n", *argv);
 			p->peer_session_id = uval;
 		} else if (strcmp(*argv, "udp_sport") == 0) {
 			__u16 uval;
 
 			NEXT_ARG();
 			if (get_u16(&uval, *argv, 0))
-				invarg("invalid port\n", *argv);
+				return invarg("invalid port\n", *argv);
 			p->local_udp_port = uval;
 		} else if (strcmp(*argv, "udp_dport") == 0) {
 			__u16 uval;
 
 			NEXT_ARG();
 			if (get_u16(&uval, *argv, 0))
-				invarg("invalid port\n", *argv);
+				return invarg("invalid port\n", *argv);
 			p->peer_udp_port = uval;
 		} else if (strcmp(*argv, "udp_csum") == 0) {
 			NEXT_ARG();
@@ -652,7 +652,7 @@ static int parse_args(int argc, char **argv, int cmd, struct l2tp_parm *p)
 			else if (strcmp(*argv, "off") == 0)
 				p->udp_csum = 0;
 			else
-				invarg("invalid option for udp_csum\n", *argv);
+				return invarg("invalid option for udp_csum\n", *argv);
 		} else if (strcmp(*argv, "udp6_csum_rx") == 0) {
 			NEXT_ARG();
 			if (strcmp(*argv, "on") == 0)
@@ -660,7 +660,7 @@ static int parse_args(int argc, char **argv, int cmd, struct l2tp_parm *p)
 			else if (strcmp(*argv, "off") == 0)
 				p->udp6_csum_rx = 0;
 			else
-				invarg("invalid option for udp6_csum_rx\n"
+				return invarg("invalid option for udp6_csum_rx\n"
 						, *argv);
 		} else if (strcmp(*argv, "udp6_csum_tx") == 0) {
 			NEXT_ARG();
@@ -669,7 +669,7 @@ static int parse_args(int argc, char **argv, int cmd, struct l2tp_parm *p)
 			else if (strcmp(*argv, "off") == 0)
 				p->udp6_csum_tx = 0;
 			else
-				invarg("invalid option for udp6_csum_tx\n"
+				return invarg("invalid option for udp6_csum_tx\n"
 						, *argv);
 		} else if (strcmp(*argv, "offset") == 0) {
 			fprintf(stderr, "Ignoring option \"offset\"\n");
@@ -683,22 +683,22 @@ static int parse_args(int argc, char **argv, int cmd, struct l2tp_parm *p)
 			NEXT_ARG();
 			slen = strlen(*argv);
 			if ((slen != 8) && (slen != 16))
-				invarg("cookie must be either 8 or 16 hex digits\n", *argv);
+				return invarg("cookie must be either 8 or 16 hex digits\n", *argv);
 
 			p->cookie_len = slen / 2;
 			if (hex2mem(*argv, p->cookie, p->cookie_len) < 0)
-				invarg("cookie must be a hex string\n", *argv);
+				return invarg("cookie must be a hex string\n", *argv);
 		} else if (strcmp(*argv, "peer_cookie") == 0) {
 			int slen;
 
 			NEXT_ARG();
 			slen = strlen(*argv);
 			if ((slen != 8) && (slen != 16))
-				invarg("cookie must be either 8 or 16 hex digits\n", *argv);
+				return invarg("cookie must be either 8 or 16 hex digits\n", *argv);
 
 			p->peer_cookie_len = slen / 2;
 			if (hex2mem(*argv, p->peer_cookie, p->peer_cookie_len) < 0)
-				invarg("cookie must be a hex string\n", *argv);
+				return invarg("cookie must be a hex string\n", *argv);
 		} else if (strcmp(*argv, "l2spec_type") == 0) {
 			NEXT_ARG();
 			if (strcasecmp(*argv, "default") == 0) {
@@ -711,7 +711,7 @@ static int parse_args(int argc, char **argv, int cmd, struct l2tp_parm *p)
 				fprintf(stderr,
 					"Unknown layer2specific header type \"%s\"\n",
 					*argv);
-				exit(-1);
+				iprt_exit(-1);
 			}
 		} else if (strcmp(*argv, "seq") == 0) {
 			NEXT_ARG();
@@ -728,17 +728,17 @@ static int parse_args(int argc, char **argv, int cmd, struct l2tp_parm *p)
 			} else {
 				fprintf(stderr,
 					"Unknown seq value \"%s\"\n", *argv);
-				exit(-1);
+				iprt_exit(-1);
 			}
 		} else if (strcmp(*argv, "tunnel") == 0) {
 			p->tunnel = 1;
 		} else if (strcmp(*argv, "session") == 0) {
 			p->session = 1;
 		} else if (matches(*argv, "help") == 0) {
-			usage();
+			return usage();
 		} else {
 			fprintf(stderr, "Unknown command: %s\n", *argv);
-			usage();
+			return usage();
 		}
 
 		argc--; argv++;
@@ -757,33 +757,33 @@ static int do_add(int argc, char **argv)
 		return -1;
 
 	if (!p.tunnel && !p.session)
-		missarg("tunnel or session");
+		return missarg("tunnel or session");
 
 	if (p.tunnel_id == 0)
-		missarg("tunnel_id");
+		return missarg("tunnel_id");
 
 	/* session_id and peer_session_id must be provided for sessions */
 	if ((p.session) && (p.peer_session_id == 0))
-		missarg("peer_session_id");
+		return missarg("peer_session_id");
 	if ((p.session) && (p.session_id == 0))
-		missarg("session_id");
+		return missarg("session_id");
 
 	/* peer_tunnel_id is needed for tunnels */
 	if ((p.tunnel) && (p.peer_tunnel_id == 0))
-		missarg("peer_tunnel_id");
+		return missarg("peer_tunnel_id");
 
 	if (p.tunnel) {
 		if (p.local_ip.family == AF_UNSPEC)
-			missarg("local");
+			return missarg("local");
 
 		if (p.peer_ip.family == AF_UNSPEC)
-			missarg("remote");
+			return missarg("remote");
 
 		if (p.encap == L2TP_ENCAPTYPE_UDP) {
 			if (p.local_udp_port == 0)
-				missarg("udp_sport");
+				return missarg("udp_sport");
 			if (p.peer_udp_port == 0)
-				missarg("udp_dport");
+				return missarg("udp_dport");
 		}
 
 		ret = create_tunnel(&p);
@@ -807,12 +807,12 @@ static int do_del(int argc, char **argv)
 		return -1;
 
 	if (!p.tunnel && !p.session)
-		missarg("tunnel or session");
+		return missarg("tunnel or session");
 
 	if ((p.tunnel) && (p.tunnel_id == 0))
-		missarg("tunnel_id");
+		return missarg("tunnel_id");
 	if ((p.session) && (p.session_id == 0))
-		missarg("session_id");
+		return missarg("session_id");
 
 	if (p.session_id)
 		return delete_session(&p);
@@ -831,7 +831,7 @@ static int do_show(int argc, char **argv)
 		return -1;
 
 	if (!p->tunnel && !p->session)
-		missarg("tunnel or session");
+		return missarg("tunnel or session");
 
 	if (p->session)
 		get_session(&data);
@@ -844,10 +844,10 @@ static int do_show(int argc, char **argv)
 int do_ipl2tp(int argc, char **argv)
 {
 	if (argc < 1 || !matches(*argv, "help"))
-		usage();
+		return usage();
 
 	if (genl_init_handle(&genl_rth, L2TP_GENL_NAME, &genl_family))
-		exit(1);
+		iprt_exit(1);
 
 	if (matches(*argv, "add") == 0)
 		return do_add(argc-1, argv+1);
@@ -860,5 +860,5 @@ int do_ipl2tp(int argc, char **argv)
 
 	fprintf(stderr,
 		"Command \"%s\" is unknown, try \"ip l2tp help\".\n", *argv);
-	exit(-1);
+	iprt_exit(-1);
 }

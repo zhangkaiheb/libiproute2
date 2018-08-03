@@ -91,12 +91,12 @@ static int vlan_parse_opt(struct link_util *lu, int argc, char **argv,
 		if (matches(*argv, "protocol") == 0) {
 			NEXT_ARG();
 			if (ll_proto_a2n(&proto, *argv))
-				invarg("protocol is invalid", *argv);
+				return invarg("protocol is invalid", *argv);
 			addattr_l(n, 1024, IFLA_VLAN_PROTOCOL, &proto, 2);
 		} else if (matches(*argv, "id") == 0) {
 			NEXT_ARG();
 			if (get_u16(&id, *argv, 0))
-				invarg("id is invalid", *argv);
+				return invarg("id is invalid", *argv);
 			addattr_l(n, 1024, IFLA_VLAN_ID, &id, 2);
 		} else if (matches(*argv, "reorder_hdr") == 0) {
 			NEXT_ARG();
@@ -138,13 +138,13 @@ static int vlan_parse_opt(struct link_util *lu, int argc, char **argv,
 			NEXT_ARG();
 			if (vlan_parse_qos_map(&argc, &argv, n,
 					       IFLA_VLAN_INGRESS_QOS))
-				invarg("invalid ingress-qos-map", *argv);
+				return invarg("invalid ingress-qos-map", *argv);
 			continue;
 		} else if (matches(*argv, "egress-qos-map") == 0) {
 			NEXT_ARG();
 			if (vlan_parse_qos_map(&argc, &argv, n,
 					       IFLA_VLAN_EGRESS_QOS))
-				invarg("invalid egress-qos-map", *argv);
+				return invarg("invalid egress-qos-map", *argv);
 			continue;
 		} else if (matches(*argv, "help") == 0) {
 			explain();

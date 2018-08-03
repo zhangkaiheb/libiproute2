@@ -187,7 +187,7 @@ get_failed:
 				 strcmp(*argv, "any") == 0)
 				proto = 0;
 			else
-				invarg("Cannot guess tunnel mode.", *argv);
+				return invarg("Cannot guess tunnel mode.", *argv);
 		} else if (strcmp(*argv, "remote") == 0) {
 			NEXT_ARG();
 			get_addr(&daddr, *argv, AF_INET6);
@@ -198,14 +198,14 @@ get_failed:
 			NEXT_ARG();
 			link = ll_name_to_index(*argv);
 			if (!link)
-				exit(nodev(*argv));
+				iprt_exit(nodev(*argv));
 		} else if (strcmp(*argv, "ttl") == 0 ||
 			   strcmp(*argv, "hoplimit") == 0 ||
 			   strcmp(*argv, "hlim") == 0) {
 			NEXT_ARG();
 			if (strcmp(*argv, "inherit") != 0) {
 				if (get_u8(&hop_limit, *argv, 0))
-					invarg("invalid HLIM\n", *argv);
+					return invarg("invalid HLIM\n", *argv);
 			} else
 				hop_limit = 0;
 		} else if (strcmp(*argv, "encaplimit") == 0) {
@@ -216,7 +216,7 @@ get_failed:
 				__u8 uval;
 
 				if (get_u8(&uval, *argv, 0) < -1)
-					invarg("invalid ELIM", *argv);
+					return invarg("invalid ELIM", *argv);
 				encap_limit = uval;
 				flags &= ~IP6_TNL_F_IGN_ENCAP_LIMIT;
 			}
@@ -232,7 +232,7 @@ get_failed:
 				flags |= IP6_TNL_F_USE_ORIG_TCLASS;
 			else {
 				if (get_u8(&uval, *argv, 16))
-					invarg("invalid TClass", *argv);
+					return invarg("invalid TClass", *argv);
 				flowinfo |= htonl((__u32)uval << 20) & IP6_FLOWINFO_TCLASS;
 				flags &= ~IP6_TNL_F_USE_ORIG_TCLASS;
 			}
@@ -246,16 +246,16 @@ get_failed:
 				flags |= IP6_TNL_F_USE_ORIG_FLOWLABEL;
 			else {
 				if (get_u32(&uval, *argv, 16))
-					invarg("invalid Flowlabel", *argv);
+					return invarg("invalid Flowlabel", *argv);
 				if (uval > 0xFFFFF)
-					invarg("invalid Flowlabel", *argv);
+					return invarg("invalid Flowlabel", *argv);
 				flowinfo |= htonl(uval) & IP6_FLOWINFO_FLOWLABEL;
 				flags &= ~IP6_TNL_F_USE_ORIG_FLOWLABEL;
 			}
 		} else if (strcmp(*argv, "dscp") == 0) {
 			NEXT_ARG();
 			if (strcmp(*argv, "inherit") != 0)
-				invarg("not inherit", *argv);
+				return invarg("not inherit", *argv);
 			flags |= IP6_TNL_F_RCV_DSCP_COPY;
 		} else if (strcmp(*argv, "fwmark") == 0) {
 			NEXT_ARG();
@@ -264,7 +264,7 @@ get_failed:
 				fwmark = 0;
 			} else {
 				if (get_u32(&fwmark, *argv, 0))
-					invarg("invalid fwmark\n", *argv);
+					return invarg("invalid fwmark\n", *argv);
 				flags &= ~IP6_TNL_F_USE_ORIG_FWMARK;
 			}
 		} else if (strcmp(*argv, "allow-localremote") == 0) {
@@ -282,17 +282,17 @@ get_failed:
 			else if (strcmp(*argv, "none") == 0)
 				encaptype = TUNNEL_ENCAP_NONE;
 			else
-				invarg("Invalid encap type.", *argv);
+				return invarg("Invalid encap type.", *argv);
 		} else if (strcmp(*argv, "encap-sport") == 0) {
 			NEXT_ARG();
 			if (strcmp(*argv, "auto") == 0)
 				encapsport = 0;
 			else if (get_u16(&encapsport, *argv, 0))
-				invarg("Invalid source port.", *argv);
+				return invarg("Invalid source port.", *argv);
 		} else if (strcmp(*argv, "encap-dport") == 0) {
 			NEXT_ARG();
 			if (get_u16(&encapdport, *argv, 0))
-				invarg("Invalid destination port.", *argv);
+				return invarg("Invalid destination port.", *argv);
 		} else if (strcmp(*argv, "encap-csum") == 0) {
 			encapflags |= TUNNEL_ENCAP_FLAG_CSUM;
 		} else if (strcmp(*argv, "noencap-csum") == 0) {

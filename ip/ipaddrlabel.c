@@ -45,13 +45,11 @@
 
 extern struct rtnl_handle rth;
 
-static void usage(void) __attribute__((noreturn));
-
-static void usage(void)
+static int usage(void)
 {
 	fprintf(stderr, "Usage: ip addrlabel { add | del } prefix PREFIX [ dev DEV ] [ label LABEL ]\n");
 	fprintf(stderr, "       ip addrlabel [ list | flush | help ]\n");
-	exit(-1);
+	iprt_exit(-1);
 }
 
 int print_addrlabel(const struct sockaddr_nl *who, struct nlmsghdr *n, void *arg)
@@ -123,7 +121,8 @@ static int ipaddrlabel_list(int argc, char **argv)
 		return 1;
 	}
 
-	new_json_obj(json);
+	if (new_json_obj(json))
+		return -1;
 	if (rtnl_dump_filter(&rth, print_addrlabel, stdout) < 0) {
 		fprintf(stderr, "Dump terminated\n");
 		return 1;
@@ -164,12 +163,12 @@ static int ipaddrlabel_modify(int cmd, int argc, char **argv)
 		} else if (strcmp(*argv, "dev") == 0) {
 			NEXT_ARG();
 			if ((req.ifal.ifal_index = ll_name_to_index(*argv)) == 0)
-				invarg("dev is invalid\n", *argv);
+				return invarg("dev is invalid\n", *argv);
 		} else if (strcmp(*argv, "label") == 0) {
 			NEXT_ARG();
 			l = *argv;
 			if (get_u32(&label, *argv, 0) || label == 0xffffffffUL)
-				invarg("label is invalid\n", *argv);
+				return invarg("label is invalid\n", *argv);
 		}
 		argc--;
 		argv++;
@@ -265,8 +264,8 @@ int do_ipaddrlabel(int argc, char **argv)
 	} else if (matches(argv[0], "flush") == 0) {
 		return ipaddrlabel_flush(argc-1, argv+1);
 	} else if (matches(argv[0], "help") == 0)
-		usage();
+		return usage();
 
 	fprintf(stderr, "Command \"%s\" is unknown, try \"ip addrlabel help\".\n", *argv);
-	exit(-1);
+	iprt_exit(-1);
 }

@@ -215,7 +215,7 @@ get_failed:
 				 strcmp(*argv, "any") == 0)
 				proto = 0;
 			else
-				invarg("Cannot guess tunnel mode.", *argv);
+				return invarg("Cannot guess tunnel mode.", *argv);
 		} else if (strcmp(*argv, "remote") == 0) {
 			NEXT_ARG();
 			get_addr(&daddr, *argv, AF_INET);
@@ -226,14 +226,14 @@ get_failed:
 			NEXT_ARG();
 			link = ll_name_to_index(*argv);
 			if (!link)
-				exit(nodev(*argv));
+				iprt_exit(nodev(*argv));
 		} else if (strcmp(*argv, "ttl") == 0 ||
 			   strcmp(*argv, "hoplimit") == 0 ||
 			   strcmp(*argv, "hlim") == 0) {
 			NEXT_ARG();
 			if (strcmp(*argv, "inherit") != 0) {
 				if (get_u8(&ttl, *argv, 0))
-					invarg("invalid TTL\n", *argv);
+					return invarg("invalid TTL\n", *argv);
 			} else
 				ttl = 0;
 		} else if (strcmp(*argv, "tos") == 0 ||
@@ -245,7 +245,7 @@ get_failed:
 			NEXT_ARG();
 			if (strcmp(*argv, "inherit") != 0) {
 				if (rtnl_dsfield_a2n(&uval, *argv))
-					invarg("bad TOS value", *argv);
+					return invarg("bad TOS value", *argv);
 				tos = uval;
 			} else
 				tos = 1;
@@ -267,17 +267,17 @@ get_failed:
 			else if (strcmp(*argv, "none") == 0)
 				encaptype = TUNNEL_ENCAP_NONE;
 			else
-				invarg("Invalid encap type.", *argv);
+				return invarg("Invalid encap type.", *argv);
 		} else if (strcmp(*argv, "encap-sport") == 0) {
 			NEXT_ARG();
 			if (strcmp(*argv, "auto") == 0)
 				encapsport = 0;
 			else if (get_u16(&encapsport, *argv, 0))
-				invarg("Invalid source port.", *argv);
+				return invarg("Invalid source port.", *argv);
 		} else if (strcmp(*argv, "encap-dport") == 0) {
 			NEXT_ARG();
 			if (get_u16(&encapdport, *argv, 0))
-				invarg("Invalid destination port.", *argv);
+				return invarg("Invalid destination port.", *argv);
 		} else if (strcmp(*argv, "encap-csum") == 0) {
 			encapflags |= TUNNEL_ENCAP_FLAG_CSUM;
 		} else if (strcmp(*argv, "noencap-csum") == 0) {
@@ -295,18 +295,18 @@ get_failed:
 		} else if (strcmp(*argv, "6rd-prefix") == 0) {
 			NEXT_ARG();
 			if (get_prefix(&ip6rdprefix, *argv, AF_INET6))
-				invarg("invalid 6rd_prefix\n", *argv);
+				return invarg("invalid 6rd_prefix\n", *argv);
 		} else if (strcmp(*argv, "6rd-relay_prefix") == 0) {
 			NEXT_ARG();
 			if (get_prefix(&ip6rdrelayprefix, *argv, AF_INET))
-				invarg("invalid 6rd-relay_prefix\n", *argv);
+				return invarg("invalid 6rd-relay_prefix\n", *argv);
 		} else if (strcmp(*argv, "6rd-reset") == 0) {
 			get_prefix(&ip6rdprefix, "2002::/16", AF_INET6);
 			inet_prefix_reset(&ip6rdrelayprefix);
 		} else if (strcmp(*argv, "fwmark") == 0) {
 			NEXT_ARG();
 			if (get_u32(&fwmark, *argv, 0))
-				invarg("invalid fwmark\n", *argv);
+				return invarg("invalid fwmark\n", *argv);
 		} else {
 			iptunnel_print_help(lu, argc, argv, stderr);
 			return -1;
@@ -316,7 +316,7 @@ get_failed:
 
 	if (ttl && pmtudisc == 0) {
 		fprintf(stderr, "ttl != 0 and nopmtudisc are incompatible\n");
-		exit(-1);
+		iprt_exit(-1);
 	}
 
 	addattr8(n, 1024, IFLA_IPTUN_PROTO, proto);

@@ -61,11 +61,11 @@ static int dump_msg2(const struct sockaddr_nl *who,
 	return dump_msg(who, NULL, n, arg);
 }
 
-static void usage(void)
+static int usage(void)
 {
 	fprintf(stderr, "Usage: rtmon file FILE [ all | LISTofOBJECTS]\n");
 	fprintf(stderr, "LISTofOBJECTS := [ link ] [ address ] [ route ]\n");
-	exit(-1);
+	iprt_exit(-1);
 }
 
 int
@@ -85,7 +85,7 @@ main(int argc, char **argv)
 			argc--;
 			argv++;
 			if (argc <= 1)
-				usage();
+				return usage();
 			if (strcmp(argv[1], "inet") == 0)
 				family = AF_INET;
 			else if (strcmp(argv[1], "inet6") == 0)
@@ -93,10 +93,10 @@ main(int argc, char **argv)
 			else if (strcmp(argv[1], "link") == 0)
 				family = AF_INET6;
 			else if (strcmp(argv[1], "help") == 0)
-				usage();
+				return usage();
 			else {
 				fprintf(stderr, "Protocol ID \"%s\" is unknown, try \"rtmon help\".\n", argv[1]);
-				exit(-1);
+				iprt_exit(-1);
 			}
 		} else if (strcmp(argv[1], "-4") == 0) {
 			family = AF_INET;
@@ -106,12 +106,12 @@ main(int argc, char **argv)
 			family = AF_PACKET;
 		} else if (matches(argv[1], "-Version") == 0) {
 			printf("rtmon utility, iproute2-ss%s\n", SNAPSHOT);
-			exit(0);
+			iprt_exit(0);
 		} else if (matches(argv[1], "file") == 0) {
 			argc--;
 			argv++;
 			if (argc <= 1)
-				usage();
+				return usage();
 			file = argv[1];
 		} else if (matches(argv[1], "link") == 0) {
 			llink = 1;
@@ -125,17 +125,17 @@ main(int argc, char **argv)
 		} else if (strcmp(argv[1], "all") == 0) {
 			groups = ~0U;
 		} else if (matches(argv[1], "help") == 0) {
-			usage();
+			return usage();
 		} else {
 			fprintf(stderr, "Argument \"%s\" is unknown, try \"rtmon help\".\n", argv[1]);
-			exit(-1);
+			iprt_exit(-1);
 		}
 		argc--;	argv++;
 	}
 
 	if (file == NULL) {
 		fprintf(stderr, "Not enough information: argument \"file\" is required\n");
-		exit(-1);
+		iprt_exit(-1);
 	}
 	if (llink)
 		groups |= nl_mgrp(RTNLGRP_LINK);
@@ -155,15 +155,15 @@ main(int argc, char **argv)
 	fp = fopen(file, "w");
 	if (fp == NULL) {
 		perror("Cannot fopen");
-		exit(-1);
+		iprt_exit(-1);
 	}
 
 	if (rtnl_open(&rth, groups) < 0)
-		exit(1);
+		iprt_exit(1);
 
 	if (rtnl_wilddump_request(&rth, AF_UNSPEC, RTM_GETLINK) < 0) {
 		perror("Cannot send dump request");
-		exit(1);
+		iprt_exit(1);
 	}
 
 	write_stamp(fp);
@@ -176,7 +176,7 @@ main(int argc, char **argv)
 	init_phase = 0;
 
 	if (rtnl_listen(&rth, dump_msg, (void *)fp) < 0)
-		exit(2);
+		iprt_exit(2);
 
-	exit(0);
+	iprt_exit(0);
 }

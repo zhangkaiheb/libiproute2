@@ -128,7 +128,7 @@ static int bond_slave_parse_opt(struct link_util *lu, int argc, char **argv,
 		if (matches(*argv, "queue_id") == 0) {
 			NEXT_ARG();
 			if (get_u16(&queue_id, *argv, 0))
-				invarg("queue_id is invalid", *argv);
+				return invarg("queue_id is invalid", *argv);
 			addattr16(n, 1024, IFLA_BOND_SLAVE_QUEUE_ID, queue_id);
 		} else {
 			if (matches(*argv, "help") != 0)

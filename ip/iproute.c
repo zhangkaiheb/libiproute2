@@ -56,9 +56,8 @@ static const char *mx_names[RTAX_MAX+1] = {
 	[RTAX_CC_ALGO]			= "congctl",
 	[RTAX_FASTOPEN_NO_COOKIE]	= "fastopen_no_cookie"
 };
-static void usage(void) __attribute__((noreturn));
 
-static void usage(void)
+static int usage(void)
 {
 	fprintf(stderr,
 		"Usage: ip route { list | flush } SELECTOR\n"
@@ -105,7 +104,7 @@ static void usage(void)
 		"SEG6HDR := [ mode SEGMODE ] segs ADDR1,ADDRi,ADDRn [hmac HMACKEYID] [cleanup]\n"
 		"SEGMODE := [ encap | inline ]\n"
 		"ROUTE_GET_FLAGS := [ fibmatch ]\n");
-	exit(-1);
+	iprt_exit(-1);
 }
 
 
@@ -980,7 +979,7 @@ static int parse_one_nh(struct nlmsghdr *n, struct rtmsg *r,
 
 			NEXT_ARG();
 			if (get_unsigned(&w, *argv, 0) || w == 0 || w > 256)
-				invarg("\"weight\" is invalid\n", *argv);
+				return invarg("\"weight\" is invalid\n", *argv);
 			rtnh->rtnh_hops = w - 1;
 		} else if (strcmp(*argv, "onlink") == 0) {
 			rtnh->rtnh_flags |= RTNH_F_ONLINK;
@@ -989,7 +988,7 @@ static int parse_one_nh(struct nlmsghdr *n, struct rtmsg *r,
 
 			NEXT_ARG();
 			if (get_rt_realms_or_raw(&realm, *argv))
-				invarg("\"realm\" value is invalid\n", *argv);
+				return invarg("\"realm\" value is invalid\n", *argv);
 			rta_addattr32(rta, 4096, RTA_FLOW, realm);
 			rtnh->rtnh_len += sizeof(struct rtattr) + 4;
 		} else if (strcmp(*argv, "encap") == 0) {
@@ -1029,18 +1028,18 @@ static int parse_nexthops(struct nlmsghdr *n, struct rtmsg *r,
 	while (argc > 0) {
 		if (strcmp(*argv, "nexthop") != 0) {
 			fprintf(stderr, "Error: \"nexthop\" or end of line is expected instead of \"%s\"\n", *argv);
-			exit(-1);
+			iprt_exit(-1);
 		}
 		if (argc <= 1) {
 			fprintf(stderr, "Error: unexpected end of line after \"nexthop\"\n");
-			exit(-1);
+			iprt_exit(-1);
 		}
 		memset(rtnh, 0, sizeof(*rtnh));
 		rtnh->rtnh_len = sizeof(*rtnh);
 		rta->rta_len += rtnh->rtnh_len;
 		if (parse_one_nh(n, r, rta, rtnh, &argc, &argv)) {
 			fprintf(stderr, "Error: cannot parse nexthop\n");
-			exit(-1);
+			iprt_exit(-1);
 		}
 		rtnh = RTNH_NEXT(rtnh);
 	}
@@ -1112,7 +1111,7 @@ static int iproute_modify(int cmd, unsigned int flags, int argc, char **argv)
 			int family;
 
 			if (gw_ok) {
-				invarg("use nexthop syntax to specify multiple via\n",
+				return invarg("use nexthop syntax to specify multiple via\n",
 				       *argv);
 			}
 			gw_ok = 1;
@@ -1147,14 +1146,14 @@ static int iproute_modify(int cmd, unsigned int flags, int argc, char **argv)
 
 			NEXT_ARG();
 			if (rtnl_dsfield_a2n(&tos, *argv))
-				invarg("\"tos\" value is invalid\n", *argv);
+				return invarg("\"tos\" value is invalid\n", *argv);
 			req.r.rtm_tos = tos;
 		} else if (strcmp(*argv, "expires") == 0) {
 			__u32 expires;
 
 			NEXT_ARG();
 			if (get_u32(&expires, *argv, 0))
-				invarg("\"expires\" value is invalid\n", *argv);
+				return invarg("\"expires\" value is invalid\n", *argv);
 			addattr32(&req.n, sizeof(req), RTA_EXPIRES, expires);
 		} else if (matches(*argv, "metric") == 0 ||
 			   matches(*argv, "priority") == 0 ||
@@ -1163,14 +1162,14 @@ static int iproute_modify(int cmd, unsigned int flags, int argc, char **argv)
 
 			NEXT_ARG();
 			if (get_u32(&metric, *argv, 0))
-				invarg("\"metric\" value is invalid\n", *argv);
+				return invarg("\"metric\" value is invalid\n", *argv);
 			addattr32(&req.n, sizeof(req), RTA_PRIORITY, metric);
 		} else if (strcmp(*argv, "scope") == 0) {
 			__u32 scope = 0;
 
 			NEXT_ARG();
 			if (rtnl_rtscope_a2n(&scope, *argv))
-				invarg("invalid \"scope\" value\n", *argv);
+				return invarg("invalid \"scope\" value\n", *argv);
 			req.r.rtm_scope = scope;
 			scope_ok = 1;
 		} else if (strcmp(*argv, "mtu") == 0) {
@@ -1182,7 +1181,7 @@ static int iproute_modify(int cmd, unsigned int flags, int argc, char **argv)
 				NEXT_ARG();
 			}
 			if (get_unsigned(&mtu, *argv, 0))
-				invarg("\"mtu\" value is invalid\n", *argv);
+				return invarg("\"mtu\" value is invalid\n", *argv);
 			rta_addattr32(mxrta, sizeof(mxbuf), RTAX_MTU, mtu);
 		} else if (strcmp(*argv, "hoplimit") == 0) {
 			unsigned int hoplimit;
@@ -1193,7 +1192,7 @@ static int iproute_modify(int cmd, unsigned int flags, int argc, char **argv)
 				NEXT_ARG();
 			}
 			if (get_unsigned(&hoplimit, *argv, 0) || hoplimit > 255)
-				invarg("\"hoplimit\" value is invalid\n", *argv);
+				return invarg("\"hoplimit\" value is invalid\n", *argv);
 			rta_addattr32(mxrta, sizeof(mxbuf), RTAX_HOPLIMIT, hoplimit);
 		} else if (strcmp(*argv, "advmss") == 0) {
 			unsigned int mss;
@@ -1204,7 +1203,7 @@ static int iproute_modify(int cmd, unsigned int flags, int argc, char **argv)
 				NEXT_ARG();
 			}
 			if (get_unsigned(&mss, *argv, 0))
-				invarg("\"mss\" value is invalid\n", *argv);
+				return invarg("\"mss\" value is invalid\n", *argv);
 			rta_addattr32(mxrta, sizeof(mxbuf), RTAX_ADVMSS, mss);
 		} else if (matches(*argv, "reordering") == 0) {
 			unsigned int reord;
@@ -1215,7 +1214,7 @@ static int iproute_modify(int cmd, unsigned int flags, int argc, char **argv)
 				NEXT_ARG();
 			}
 			if (get_unsigned(&reord, *argv, 0))
-				invarg("\"reordering\" value is invalid\n", *argv);
+				return invarg("\"reordering\" value is invalid\n", *argv);
 			rta_addattr32(mxrta, sizeof(mxbuf), RTAX_REORDERING, reord);
 		} else if (strcmp(*argv, "rtt") == 0) {
 			unsigned int rtt;
@@ -1226,7 +1225,7 @@ static int iproute_modify(int cmd, unsigned int flags, int argc, char **argv)
 				NEXT_ARG();
 			}
 			if (get_time_rtt(&rtt, *argv, &raw))
-				invarg("\"rtt\" value is invalid\n", *argv);
+				return invarg("\"rtt\" value is invalid\n", *argv);
 			rta_addattr32(mxrta, sizeof(mxbuf), RTAX_RTT,
 				(raw) ? rtt : rtt * 8);
 		} else if (strcmp(*argv, "rto_min") == 0) {
@@ -1235,7 +1234,7 @@ static int iproute_modify(int cmd, unsigned int flags, int argc, char **argv)
 			NEXT_ARG();
 			mxlock |= (1<<RTAX_RTO_MIN);
 			if (get_time_rtt(&rto_min, *argv, &raw))
-				invarg("\"rto_min\" value is invalid\n",
+				return invarg("\"rto_min\" value is invalid\n",
 				       *argv);
 			rta_addattr32(mxrta, sizeof(mxbuf), RTAX_RTO_MIN,
 				      rto_min);
@@ -1248,7 +1247,7 @@ static int iproute_modify(int cmd, unsigned int flags, int argc, char **argv)
 				NEXT_ARG();
 			}
 			if (get_unsigned(&win, *argv, 0))
-				invarg("\"window\" value is invalid\n", *argv);
+				return invarg("\"window\" value is invalid\n", *argv);
 			rta_addattr32(mxrta, sizeof(mxbuf), RTAX_WINDOW, win);
 		} else if (matches(*argv, "cwnd") == 0) {
 			unsigned int win;
@@ -1259,7 +1258,7 @@ static int iproute_modify(int cmd, unsigned int flags, int argc, char **argv)
 				NEXT_ARG();
 			}
 			if (get_unsigned(&win, *argv, 0))
-				invarg("\"cwnd\" value is invalid\n", *argv);
+				return invarg("\"cwnd\" value is invalid\n", *argv);
 			rta_addattr32(mxrta, sizeof(mxbuf), RTAX_CWND, win);
 		} else if (matches(*argv, "initcwnd") == 0) {
 			unsigned int win;
@@ -1270,7 +1269,7 @@ static int iproute_modify(int cmd, unsigned int flags, int argc, char **argv)
 				NEXT_ARG();
 			}
 			if (get_unsigned(&win, *argv, 0))
-				invarg("\"initcwnd\" value is invalid\n", *argv);
+				return invarg("\"initcwnd\" value is invalid\n", *argv);
 			rta_addattr32(mxrta, sizeof(mxbuf),
 				      RTAX_INITCWND, win);
 		} else if (matches(*argv, "initrwnd") == 0) {
@@ -1282,7 +1281,7 @@ static int iproute_modify(int cmd, unsigned int flags, int argc, char **argv)
 				NEXT_ARG();
 			}
 			if (get_unsigned(&win, *argv, 0))
-				invarg("\"initrwnd\" value is invalid\n", *argv);
+				return invarg("\"initrwnd\" value is invalid\n", *argv);
 			rta_addattr32(mxrta, sizeof(mxbuf),
 				      RTAX_INITRWND, win);
 		} else if (matches(*argv, "features") == 0) {
@@ -1294,7 +1293,7 @@ static int iproute_modify(int cmd, unsigned int flags, int argc, char **argv)
 				if (strcmp(*argv, "ecn") == 0)
 					features |= RTAX_FEATURE_ECN;
 				else
-					invarg("\"features\" value not valid\n", *argv);
+					return invarg("\"features\" value not valid\n", *argv);
 				break;
 			}
 
@@ -1305,9 +1304,9 @@ static int iproute_modify(int cmd, unsigned int flags, int argc, char **argv)
 
 			NEXT_ARG();
 			if (get_unsigned(&quickack, *argv, 0))
-				invarg("\"quickack\" value is invalid\n", *argv);
+				return invarg("\"quickack\" value is invalid\n", *argv);
 			if (quickack != 1 && quickack != 0)
-				invarg("\"quickack\" value should be 0 or 1\n", *argv);
+				return invarg("\"quickack\" value should be 0 or 1\n", *argv);
 			rta_addattr32(mxrta, sizeof(mxbuf),
 				      RTAX_QUICKACK, quickack);
 		} else if (matches(*argv, "congctl") == 0) {
@@ -1327,7 +1326,7 @@ static int iproute_modify(int cmd, unsigned int flags, int argc, char **argv)
 				NEXT_ARG();
 			}
 			if (get_time_rtt(&win, *argv, &raw))
-				invarg("\"rttvar\" value is invalid\n", *argv);
+				return invarg("\"rttvar\" value is invalid\n", *argv);
 			rta_addattr32(mxrta, sizeof(mxbuf), RTAX_RTTVAR,
 				(raw) ? win : win * 4);
 		} else if (matches(*argv, "ssthresh") == 0) {
@@ -1339,14 +1338,14 @@ static int iproute_modify(int cmd, unsigned int flags, int argc, char **argv)
 				NEXT_ARG();
 			}
 			if (get_unsigned(&win, *argv, 0))
-				invarg("\"ssthresh\" value is invalid\n", *argv);
+				return invarg("\"ssthresh\" value is invalid\n", *argv);
 			rta_addattr32(mxrta, sizeof(mxbuf), RTAX_SSTHRESH, win);
 		} else if (matches(*argv, "realms") == 0) {
 			__u32 realm;
 
 			NEXT_ARG();
 			if (get_rt_realms_or_raw(&realm, *argv))
-				invarg("\"realm\" value is invalid\n", *argv);
+				return invarg("\"realm\" value is invalid\n", *argv);
 			addattr32(&req.n, sizeof(req), RTA_FLOW, realm);
 		} else if (strcmp(*argv, "onlink") == 0) {
 			req.r.rtm_flags |= RTNH_F_ONLINK;
@@ -1358,14 +1357,14 @@ static int iproute_modify(int cmd, unsigned int flags, int argc, char **argv)
 
 			NEXT_ARG();
 			if (rtnl_rtprot_a2n(&prot, *argv))
-				invarg("\"protocol\" value is invalid\n", *argv);
+				return invarg("\"protocol\" value is invalid\n", *argv);
 			req.r.rtm_protocol = prot;
 		} else if (matches(*argv, "table") == 0) {
 			__u32 tid;
 
 			NEXT_ARG();
 			if (rtnl_rttable_a2n(&tid, *argv))
-				invarg("\"table\" value is invalid\n", *argv);
+				return invarg("\"table\" value is invalid\n", *argv);
 			if (tid < 256)
 				req.r.rtm_table = tid;
 			else {
@@ -1379,7 +1378,7 @@ static int iproute_modify(int cmd, unsigned int flags, int argc, char **argv)
 			NEXT_ARG();
 			tid = ipvrf_get_table(*argv);
 			if (tid == 0)
-				invarg("Invalid VRF\n", *argv);
+				return invarg("Invalid VRF\n", *argv);
 			if (tid < 256)
 				req.r.rtm_table = tid;
 			else {
@@ -1402,7 +1401,7 @@ static int iproute_modify(int cmd, unsigned int flags, int argc, char **argv)
 			else if (strcmp(*argv, "high") == 0)
 				pref = ICMPV6_ROUTER_PREF_HIGH;
 			else if (get_u8(&pref, *argv, 0))
-				invarg("\"pref\" value is invalid\n", *argv);
+				return invarg("\"pref\" value is invalid\n", *argv);
 			addattr8(&req.n, sizeof(req), RTA_PREF, pref);
 		} else if (strcmp(*argv, "encap") == 0) {
 			char buf[1024];
@@ -1425,7 +1424,7 @@ static int iproute_modify(int cmd, unsigned int flags, int argc, char **argv)
 			else if (matches(*argv, "disabled") == 0)
 				ttl_prop = 0;
 			else
-				invarg("\"ttl-propagate\" value is invalid\n",
+				return invarg("\"ttl-propagate\" value is invalid\n",
 				       *argv);
 
 			addattr8(&req.n, sizeof(req), RTA_TTL_PROPAGATE,
@@ -1435,9 +1434,9 @@ static int iproute_modify(int cmd, unsigned int flags, int argc, char **argv)
 
 			NEXT_ARG();
 			if (get_unsigned(&fastopen_no_cookie, *argv, 0))
-				invarg("\"fastopen_no_cookie\" value is invalid\n", *argv);
+				return invarg("\"fastopen_no_cookie\" value is invalid\n", *argv);
 			if (fastopen_no_cookie != 1 && fastopen_no_cookie != 0)
-				invarg("\"fastopen_no_cookie\" value should be 0 or 1\n", *argv);
+				return invarg("\"fastopen_no_cookie\" value should be 0 or 1\n", *argv);
 			rta_addattr32(mxrta, sizeof(mxbuf), RTAX_FASTOPEN_NO_COOKIE, fastopen_no_cookie);
 		} else {
 			int type;
@@ -1454,9 +1453,9 @@ static int iproute_modify(int cmd, unsigned int flags, int argc, char **argv)
 			}
 
 			if (matches(*argv, "help") == 0)
-				usage();
+				return usage();
 			if (dst_ok)
-				duparg2("to", *argv);
+				return duparg2("to", *argv);
 			get_prefix(&dst, *argv, req.r.rtm_family);
 			if (req.r.rtm_family == AF_UNSPEC)
 				req.r.rtm_family = dst.family;
@@ -1470,7 +1469,7 @@ static int iproute_modify(int cmd, unsigned int flags, int argc, char **argv)
 	}
 
 	if (!dst_ok)
-		usage();
+		return usage();
 
 	if (d) {
 		int idx = ll_name_to_index(d);
@@ -1713,9 +1712,9 @@ static int iproute_list_flush_or_save(int argc, char **argv, int action)
 				} else if (strcmp(*argv, "cache") == 0) {
 					filter.cloned = 1;
 				} else if (strcmp(*argv, "help") == 0) {
-					usage();
+					return usage();
 				} else {
-					invarg("table id value is invalid\n", *argv);
+					return invarg("table id value is invalid\n", *argv);
 				}
 			} else
 				filter.tb = tid;
@@ -1725,7 +1724,7 @@ static int iproute_list_flush_or_save(int argc, char **argv, int action)
 			NEXT_ARG();
 			tid = ipvrf_get_table(*argv);
 			if (tid == 0)
-				invarg("Invalid VRF\n", *argv);
+				return invarg("Invalid VRF\n", *argv);
 			filter.tb = tid;
 			filter.typemask = ~(1 << RTN_LOCAL | 1<<RTN_BROADCAST);
 		} else if (matches(*argv, "cached") == 0 ||
@@ -1737,7 +1736,7 @@ static int iproute_list_flush_or_save(int argc, char **argv, int action)
 
 			NEXT_ARG();
 			if (rtnl_dsfield_a2n(&tos, *argv))
-				invarg("TOS value is invalid\n", *argv);
+				return invarg("TOS value is invalid\n", *argv);
 			filter.tos = tos;
 			filter.tosmask = -1;
 		} else if (matches(*argv, "protocol") == 0) {
@@ -1747,7 +1746,7 @@ static int iproute_list_flush_or_save(int argc, char **argv, int action)
 			filter.protocolmask = -1;
 			if (rtnl_rtprot_a2n(&prot, *argv)) {
 				if (strcmp(*argv, "all") != 0)
-					invarg("invalid \"protocol\"\n", *argv);
+					return invarg("invalid \"protocol\"\n", *argv);
 				prot = 0;
 				filter.protocolmask = 0;
 			}
@@ -1759,7 +1758,7 @@ static int iproute_list_flush_or_save(int argc, char **argv, int action)
 			filter.scopemask = -1;
 			if (rtnl_rtscope_a2n(&scope, *argv)) {
 				if (strcmp(*argv, "all") != 0)
-					invarg("invalid \"scope\"\n", *argv);
+					return invarg("invalid \"scope\"\n", *argv);
 				scope = RT_SCOPE_NOWHERE;
 				filter.scopemask = 0;
 			}
@@ -1769,7 +1768,7 @@ static int iproute_list_flush_or_save(int argc, char **argv, int action)
 
 			NEXT_ARG();
 			if (rtnl_rtntype_a2n(&type, *argv))
-				invarg("node type value is invalid\n", *argv);
+				return invarg("node type value is invalid\n", *argv);
 			filter.typemask = (1<<type);
 		} else if (strcmp(*argv, "dev") == 0 ||
 			   strcmp(*argv, "oif") == 0) {
@@ -1781,7 +1780,7 @@ static int iproute_list_flush_or_save(int argc, char **argv, int action)
 		} else if (strcmp(*argv, "mark") == 0) {
 			NEXT_ARG();
 			if (get_unsigned(&mark, *argv, 0))
-				invarg("invalid mark value", *argv);
+				return invarg("invalid mark value", *argv);
 			filter.markmask = -1;
 		} else if (matches(*argv, "metric") == 0 ||
 			   matches(*argv, "priority") == 0 ||
@@ -1790,7 +1789,7 @@ static int iproute_list_flush_or_save(int argc, char **argv, int action)
 
 			NEXT_ARG();
 			if (get_u32(&metric, *argv, 0))
-				invarg("\"metric\" value is invalid\n", *argv);
+				return invarg("\"metric\" value is invalid\n", *argv);
 			filter.metric = metric;
 			filter.metricmask = -1;
 		} else if (strcmp(*argv, "via") == 0) {
@@ -1811,7 +1810,7 @@ static int iproute_list_flush_or_save(int argc, char **argv, int action)
 
 			NEXT_ARG();
 			if (get_rt_realms_or_raw(&realm, *argv))
-				invarg("invalid realms\n", *argv);
+				return invarg("invalid realms\n", *argv);
 			filter.realm = realm;
 			filter.realmmask = ~0U;
 			if ((filter.realm&0xFFFF) == 0 &&
@@ -1895,7 +1894,8 @@ static int iproute_list_flush_or_save(int argc, char **argv, int action)
 		}
 	}
 
-	new_json_obj(json);
+	if (new_json_obj(json))
+		return -1;
 
 	if (rtnl_dump_filter(&rth, filter_fn, stdout) < 0) {
 		fprintf(stderr, "Dump terminated\n");
@@ -1938,14 +1938,14 @@ static int iproute_get(int argc, char **argv)
 
 			NEXT_ARG();
 			if (rtnl_dsfield_a2n(&tos, *argv))
-				invarg("TOS value is invalid\n", *argv);
+				return invarg("TOS value is invalid\n", *argv);
 			req.r.rtm_tos = tos;
 		} else if (matches(*argv, "from") == 0) {
 			inet_prefix addr;
 
 			NEXT_ARG();
 			if (matches(*argv, "help") == 0)
-				usage();
+				return usage();
 			from_ok = 1;
 			get_prefix(&addr, *argv, req.r.rtm_family);
 			if (req.r.rtm_family == AF_UNSPEC)
@@ -1960,7 +1960,7 @@ static int iproute_get(int argc, char **argv)
 		} else if (matches(*argv, "mark") == 0) {
 			NEXT_ARG();
 			if (get_unsigned(&mark, *argv, 0))
-				invarg("invalid mark value", *argv);
+				return invarg("invalid mark value", *argv);
 		} else if (matches(*argv, "oif") == 0 ||
 			   strcmp(*argv, "dev") == 0) {
 			NEXT_ARG();
@@ -1972,14 +1972,14 @@ static int iproute_get(int argc, char **argv)
 		} else if (matches(*argv, "vrf") == 0) {
 			NEXT_ARG();
 			if (!name_is_vrf(*argv))
-				invarg("Invalid VRF\n", *argv);
+				return invarg("Invalid VRF\n", *argv);
 			odev = *argv;
 		} else if (matches(*argv, "uid") == 0) {
 			uid_t uid;
 
 			NEXT_ARG();
 			if (get_unsigned(&uid, *argv, 0))
-				invarg("invalid UID\n", *argv);
+				return invarg("invalid UID\n", *argv);
 			addattr32(&req.n, sizeof(req), RTA_UID, uid);
 		} else if (matches(*argv, "fibmatch") == 0) {
 			fib_match = 1;
@@ -2001,7 +2001,7 @@ static int iproute_get(int argc, char **argv)
 				NEXT_ARG();
 			}
 			if (matches(*argv, "help") == 0)
-				usage();
+				return usage();
 			get_prefix(&addr, *argv, req.r.rtm_family);
 			if (req.r.rtm_family == AF_UNSPEC)
 				req.r.rtm_family = addr.family;
@@ -2270,9 +2270,9 @@ int do_iproute(int argc, char **argv)
 	if (matches(*argv, "showdump") == 0)
 		return iproute_showdump();
 	if (matches(*argv, "help") == 0)
-		usage();
+		return usage();
 
 	fprintf(stderr,
 		"Command \"%s\" is unknown, try \"ip route help\".\n", *argv);
-	exit(-1);
+	iprt_exit(-1);
 }

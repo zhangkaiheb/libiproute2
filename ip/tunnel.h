@@ -21,6 +21,7 @@
 #ifndef __TUNNEL_H__
 #define __TUNNEL_H__ 1
 
+#include "iprt.h"
 #include <stdbool.h>
 #include <linux/types.h>
 

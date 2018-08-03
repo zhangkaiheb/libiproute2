@@ -172,7 +172,7 @@ static int bond_parse_opt(struct link_util *lu, int argc, char **argv,
 		if (matches(*argv, "mode") == 0) {
 			NEXT_ARG();
 			if (get_index(mode_tbl, *argv) < 0)
-				invarg("invalid mode", *argv);
+				return invarg("invalid mode", *argv);
 			mode = get_index(mode_tbl, *argv);
 			addattr8(n, 1024, IFLA_BOND_MODE, mode);
 		} else if (matches(*argv, "active_slave") == 0) {
@@ -186,27 +186,27 @@ static int bond_parse_opt(struct link_util *lu, int argc, char **argv,
 		} else if (matches(*argv, "miimon") == 0) {
 			NEXT_ARG();
 			if (get_u32(&miimon, *argv, 0))
-				invarg("invalid miimon", *argv);
+				return invarg("invalid miimon", *argv);
 			addattr32(n, 1024, IFLA_BOND_MIIMON, miimon);
 		} else if (matches(*argv, "updelay") == 0) {
 			NEXT_ARG();
 			if (get_u32(&updelay, *argv, 0))
-				invarg("invalid updelay", *argv);
+				return invarg("invalid updelay", *argv);
 			addattr32(n, 1024, IFLA_BOND_UPDELAY, updelay);
 		} else if (matches(*argv, "downdelay") == 0) {
 			NEXT_ARG();
 			if (get_u32(&downdelay, *argv, 0))
-				invarg("invalid downdelay", *argv);
+				return invarg("invalid downdelay", *argv);
 			addattr32(n, 1024, IFLA_BOND_DOWNDELAY, downdelay);
 		} else if (matches(*argv, "use_carrier") == 0) {
 			NEXT_ARG();
 			if (get_u8(&use_carrier, *argv, 0))
-				invarg("invalid use_carrier", *argv);
+				return invarg("invalid use_carrier", *argv);
 			addattr8(n, 1024, IFLA_BOND_USE_CARRIER, use_carrier);
 		} else if (matches(*argv, "arp_interval") == 0) {
 			NEXT_ARG();
 			if (get_u32(&arp_interval, *argv, 0))
-				invarg("invalid arp_interval", *argv);
+				return invarg("invalid arp_interval", *argv);
 			addattr32(n, 1024, IFLA_BOND_ARP_INTERVAL, arp_interval);
 		} else if (matches(*argv, "arp_ip_target") == 0) {
 			struct rtattr *nest = addattr_nest(n, 1024,
@@ -229,13 +229,13 @@ static int bond_parse_opt(struct link_util *lu, int argc, char **argv,
 		} else if (matches(*argv, "arp_validate") == 0) {
 			NEXT_ARG();
 			if (get_index(arp_validate_tbl, *argv) < 0)
-				invarg("invalid arp_validate", *argv);
+				return invarg("invalid arp_validate", *argv);
 			arp_validate = get_index(arp_validate_tbl, *argv);
 			addattr32(n, 1024, IFLA_BOND_ARP_VALIDATE, arp_validate);
 		} else if (matches(*argv, "arp_all_targets") == 0) {
 			NEXT_ARG();
 			if (get_index(arp_all_targets_tbl, *argv) < 0)
-				invarg("invalid arp_all_targets", *argv);
+				return invarg("invalid arp_all_targets", *argv);
 			arp_all_targets = get_index(arp_all_targets_tbl, *argv);
 			addattr32(n, 1024, IFLA_BOND_ARP_ALL_TARGETS, arp_all_targets);
 		} else if (matches(*argv, "primary") == 0) {
@@ -247,21 +247,21 @@ static int bond_parse_opt(struct link_util *lu, int argc, char **argv,
 		} else if (matches(*argv, "primary_reselect") == 0) {
 			NEXT_ARG();
 			if (get_index(primary_reselect_tbl, *argv) < 0)
-				invarg("invalid primary_reselect", *argv);
+				return invarg("invalid primary_reselect", *argv);
 			primary_reselect = get_index(primary_reselect_tbl, *argv);
 			addattr8(n, 1024, IFLA_BOND_PRIMARY_RESELECT,
 				 primary_reselect);
 		} else if (matches(*argv, "fail_over_mac") == 0) {
 			NEXT_ARG();
 			if (get_index(fail_over_mac_tbl, *argv) < 0)
-				invarg("invalid fail_over_mac", *argv);
+				return invarg("invalid fail_over_mac", *argv);
 			fail_over_mac = get_index(fail_over_mac_tbl, *argv);
 			addattr8(n, 1024, IFLA_BOND_FAIL_OVER_MAC,
 				 fail_over_mac);
 		} else if (matches(*argv, "xmit_hash_policy") == 0) {
 			NEXT_ARG();
 			if (get_index(xmit_hash_policy_tbl, *argv) < 0)
-				invarg("invalid xmit_hash_policy", *argv);
+				return invarg("invalid xmit_hash_policy", *argv);
 
 			xmit_hash_policy = get_index(xmit_hash_policy_tbl, *argv);
 			addattr8(n, 1024, IFLA_BOND_XMIT_HASH_POLICY,
@@ -269,14 +269,14 @@ static int bond_parse_opt(struct link_util *lu, int argc, char **argv,
 		} else if (matches(*argv, "resend_igmp") == 0) {
 			NEXT_ARG();
 			if (get_u32(&resend_igmp, *argv, 0))
-				invarg("invalid resend_igmp", *argv);
+				return invarg("invalid resend_igmp", *argv);
 
 			addattr32(n, 1024, IFLA_BOND_RESEND_IGMP, resend_igmp);
 		} else if (matches(*argv, "num_grat_arp") == 0 ||
 			   matches(*argv, "num_unsol_na") == 0) {
 			NEXT_ARG();
 			if (get_u8(&num_peer_notif, *argv, 0))
-				invarg("invalid num_grat_arp|num_unsol_na",
+				return invarg("invalid num_grat_arp|num_unsol_na",
 				       *argv);
 
 			addattr8(n, 1024, IFLA_BOND_NUM_PEER_NOTIF,
@@ -284,54 +284,54 @@ static int bond_parse_opt(struct link_util *lu, int argc, char **argv,
 		} else if (matches(*argv, "all_slaves_active") == 0) {
 			NEXT_ARG();
 			if (get_u8(&all_slaves_active, *argv, 0))
-				invarg("invalid all_slaves_active", *argv);
+				return invarg("invalid all_slaves_active", *argv);
 
 			addattr8(n, 1024, IFLA_BOND_ALL_SLAVES_ACTIVE,
 				 all_slaves_active);
 		} else if (matches(*argv, "min_links") == 0) {
 			NEXT_ARG();
 			if (get_u32(&min_links, *argv, 0))
-				invarg("invalid min_links", *argv);
+				return invarg("invalid min_links", *argv);
 
 			addattr32(n, 1024, IFLA_BOND_MIN_LINKS, min_links);
 		} else if (matches(*argv, "lp_interval") == 0) {
 			NEXT_ARG();
 			if (get_u32(&lp_interval, *argv, 0))
-				invarg("invalid lp_interval", *argv);
+				return invarg("invalid lp_interval", *argv);
 
 			addattr32(n, 1024, IFLA_BOND_LP_INTERVAL, lp_interval);
 		} else if (matches(*argv, "packets_per_slave") == 0) {
 			NEXT_ARG();
 			if (get_u32(&packets_per_slave, *argv, 0))
-				invarg("invalid packets_per_slave", *argv);
+				return invarg("invalid packets_per_slave", *argv);
 
 			addattr32(n, 1024, IFLA_BOND_PACKETS_PER_SLAVE,
 				  packets_per_slave);
 		} else if (matches(*argv, "lacp_rate") == 0) {
 			NEXT_ARG();
 			if (get_index(lacp_rate_tbl, *argv) < 0)
-				invarg("invalid lacp_rate", *argv);
+				return invarg("invalid lacp_rate", *argv);
 
 			lacp_rate = get_index(lacp_rate_tbl, *argv);
 			addattr8(n, 1024, IFLA_BOND_AD_LACP_RATE, lacp_rate);
 		} else if (matches(*argv, "ad_select") == 0) {
 			NEXT_ARG();
 			if (get_index(ad_select_tbl, *argv) < 0)
-				invarg("invalid ad_select", *argv);
+				return invarg("invalid ad_select", *argv);
 
 			ad_select = get_index(ad_select_tbl, *argv);
 			addattr8(n, 1024, IFLA_BOND_AD_SELECT, ad_select);
 		} else if (matches(*argv, "ad_user_port_key") == 0) {
 			NEXT_ARG();
 			if (get_u16(&ad_user_port_key, *argv, 0))
-				invarg("invalid ad_user_port_key", *argv);
+				return invarg("invalid ad_user_port_key", *argv);
 
 			addattr16(n, 1024, IFLA_BOND_AD_USER_PORT_KEY,
 				  ad_user_port_key);
 		} else if (matches(*argv, "ad_actor_sys_prio") == 0) {
 			NEXT_ARG();
 			if (get_u16(&ad_actor_sys_prio, *argv, 0))
-				invarg("invalid ad_actor_sys_prio", *argv);
+				return invarg("invalid ad_actor_sys_prio", *argv);
 
 			addattr16(n, 1024, IFLA_BOND_AD_ACTOR_SYS_PRIO,
 				  ad_actor_sys_prio);
@@ -348,7 +348,7 @@ static int bond_parse_opt(struct link_util *lu, int argc, char **argv,
 		} else if (matches(*argv, "tlb_dynamic_lb") == 0) {
 			NEXT_ARG();
 			if (get_u8(&tlb_dynamic_lb, *argv, 0)) {
-				invarg("invalid tlb_dynamic_lb", *argv);
+				return invarg("invalid tlb_dynamic_lb", *argv);
 				return -1;
 			}
 			addattr8(n, 1024, IFLA_BOND_TLB_DYNAMIC_LB,

@@ -30,7 +30,7 @@
 
 #define HMAC_KEY_PROMPT "Enter secret for HMAC key ID (blank to delete): "
 
-static void usage(void)
+static int usage(void)
 {
 	fprintf(stderr, "Usage: ip sr { COMMAND | help }\n");
 	fprintf(stderr, "	   ip sr hmac show\n");
@@ -38,7 +38,7 @@ static void usage(void)
 	fprintf(stderr, "	   ip sr tunsrc show\n");
 	fprintf(stderr, "	   ip sr tunsrc set ADDRESS\n");
 	fprintf(stderr, "where  ALGO := { sha1 | sha256 }\n");
-	exit(-1);
+	iprt_exit(-1);
 }
 
 static struct rtnl_handle grth = { .fd = -1 };
@@ -141,11 +141,11 @@ static int seg6_do_cmd(void)
 	if (genl_family < 0) {
 		if (rtnl_open_byproto(&grth, 0, NETLINK_GENERIC) < 0) {
 			fprintf(stderr, "Cannot open generic netlink socket\n");
-			exit(1);
+			iprt_exit(1);
 		}
 		genl_family = genl_resolve_family(&grth, SEG6_GENL_NAME);
 		if (genl_family < 0)
-			exit(1);
+			iprt_exit(1);
 		req.n.nlmsg_type = genl_family;
 	}
 
@@ -179,10 +179,11 @@ static int seg6_do_cmd(void)
 	} else if (repl) {
 		if (rtnl_talk(&grth, &req.n, &answer) < 0)
 			return -2;
-		new_json_obj(json);
+		if (new_json_obj(json))
+			return -1;
 		if (process_msg(NULL, answer, stdout) < 0) {
 			fprintf(stderr, "Error parsing reply\n");
-			exit(1);
+			iprt_exit(1);
 		}
 		delete_json_obj();
 		free(answer);
@@ -191,13 +192,14 @@ static int seg6_do_cmd(void)
 		req.n.nlmsg_seq = grth.dump = ++grth.seq;
 		if (rtnl_send(&grth, &req, req.n.nlmsg_len) < 0) {
 			perror("Failed to send dump request");
-			exit(1);
+			iprt_exit(1);
 		}
 
-		new_json_obj(json);
+		if (new_json_obj(json))
+			return -1;
 		if (rtnl_dump_filter(&grth, process_msg, stdout) < 0) {
 			fprintf(stderr, "Dump terminated\n");
-			exit(1);
+			iprt_exit(1);
 		}
 		delete_json_obj();
 		fflush(stdout);
@@ -209,7 +211,7 @@ static int seg6_do_cmd(void)
 int do_seg6(int argc, char **argv)
 {
 	if (argc < 1 || matches(*argv, "help") == 0)
-		usage();
+		return usage();
 
 	memset(&opts, 0, sizeof(opts));
 
@@ -220,19 +222,19 @@ int do_seg6(int argc, char **argv)
 		} else if (matches(*argv, "set") == 0) {
 			NEXT_ARG();
 			if (get_u32(&opts.keyid, *argv, 0) || opts.keyid == 0)
-				invarg("hmac KEYID value is invalid", *argv);
+				return invarg("hmac KEYID value is invalid", *argv);
 			NEXT_ARG();
 			if (strcmp(*argv, "sha1") == 0) {
 				opts.alg_id = SEG6_HMAC_ALGO_SHA1;
 			} else if (strcmp(*argv, "sha256") == 0) {
 				opts.alg_id = SEG6_HMAC_ALGO_SHA256;
 			} else {
-				invarg("hmac ALGO value is invalid", *argv);
+				return invarg("hmac ALGO value is invalid", *argv);
 			}
 			opts.cmd = SEG6_CMD_SETHMAC;
 			opts.pass = getpass(HMAC_KEY_PROMPT);
 		} else {
-			invarg("unknown", *argv);
+			return invarg("unknown", *argv);
 		}
 	} else if (matches(*argv, "tunsrc") == 0) {
 		NEXT_ARG();
@@ -243,10 +245,10 @@ int do_seg6(int argc, char **argv)
 			opts.cmd = SEG6_CMD_SET_TUNSRC;
 			get_addr(&opts.addr, *argv, AF_INET6);
 		} else {
-			invarg("unknown", *argv);
+			return invarg("unknown", *argv);
 		}
 	} else {
-		invarg("unknown", *argv);
+		return invarg("unknown", *argv);
 	}
 
 	return seg6_do_cmd();

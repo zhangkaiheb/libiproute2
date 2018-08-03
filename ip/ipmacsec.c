@@ -79,7 +79,7 @@ static int genl_family = -1;
 		     _cmd, _flags)
 
 
-static void ipmacsec_usage(void)
+static int ipmacsec_usage(void)
 {
 	fprintf(stderr,
 		"Usage: ip macsec add DEV tx sa { 0..3 } [ OPTS ] key ID KEY\n"
@@ -98,7 +98,7 @@ static void ipmacsec_usage(void)
 		"       KEY  := 128-bit hex string\n"
 		"       SCI  := { sci <u64> | port { 1..2^16-1 } address <lladdr> }\n");
 
-	exit(-1);
+	iprt_exit(-1);
 }
 
 static int one_of(const char *msg, const char *realval, const char * const *list,
@@ -146,17 +146,18 @@ static int get_port(__be16 *port, const char *arg)
 #define _STR(a) #a
 #define STR(a) _STR(a)
 
-static void get_icvlen(__u8 *icvlen, char *arg)
+static int get_icvlen(__u8 *icvlen, char *arg)
 {
 	int ret = get_u8(icvlen, arg, 10);
 
 	if (ret)
-		invarg("expected ICV length", arg);
+		return invarg("expected ICV length", arg);
 
 	if (*icvlen < MACSEC_MIN_ICV_LEN || *icvlen > MACSEC_STD_ICV_LEN)
-		invarg("ICV length must be in the range {"
+		return invarg("ICV length must be in the range {"
 		       STR(MACSEC_MIN_ICV_LEN) ".." STR(MACSEC_STD_ICV_LEN)
 		       "}", arg);
+	return 0;
 }
 
 static bool get_sa(int *argcp, char ***argvp, __u8 *an)
@@ -171,7 +172,7 @@ static bool get_sa(int *argcp, char ***argvp, __u8 *an)
 	NEXT_ARG();
 	ret = get_an(an, *argv);
 	if (ret)
-		invarg("expected an { 0..3 }", *argv);
+		return invarg("expected an { 0..3 }", *argv);
 	argc--; argv++;
 
 	*argvp = argv;
@@ -189,38 +190,38 @@ static int parse_sa_args(int *argcp, char ***argvp, struct sa_desc *sa)
 	while (argc > 0) {
 		if (strcmp(*argv, "pn") == 0) {
 			if (sa->pn != 0)
-				duparg2("pn", "pn");
+				return duparg2("pn", "pn");
 			NEXT_ARG();
 			ret = get_u32(&sa->pn, *argv, 0);
 			if (ret)
-				invarg("expected pn", *argv);
+				return invarg("expected pn", *argv);
 			if (sa->pn == 0)
-				invarg("expected pn != 0", *argv);
+				return invarg("expected pn != 0", *argv);
 		} else if (strcmp(*argv, "key") == 0) {
 			unsigned int len;
 
 			NEXT_ARG();
 			if (!hexstring_a2n(*argv, sa->key_id, MACSEC_KEYID_LEN,
 					   &len))
-				invarg("expected key id", *argv);
+				return invarg("expected key id", *argv);
 			NEXT_ARG();
 			if (!hexstring_a2n(*argv, sa->key, MACSEC_MAX_KEY_LEN,
 					   &sa->key_len))
-				invarg("expected key", *argv);
+				return invarg("expected key", *argv);
 		} else if (strcmp(*argv, "on") == 0) {
 			if (active_set)
-				duparg2("on/off", "on");
+				return duparg2("on/off", "on");
 			sa->active = true;
 			active_set = true;
 		} else if (strcmp(*argv, "off") == 0) {
 			if (active_set)
-				duparg2("on/off", "off");
+				return duparg2("on/off", "off");
 			sa->active = false;
 			active_set = true;
 		} else {
 			fprintf(stderr, "macsec: unknown command \"%s\"?\n",
 				*argv);
-			ipmacsec_usage();
+			return ipmacsec_usage();
 		}
 
 		argv++; argc--;
@@ -257,32 +258,32 @@ static int get_sci_portaddr(struct sci *sci, int *argcp, char ***argvp,
 	while (argc > 0) {
 		if (strcmp(*argv, "sci") == 0) {
 			if (p)
-				invarg("expected address", *argv);
+				return invarg("expected address", *argv);
 			if (a)
-				invarg("expected port", *argv);
+				return invarg("expected port", *argv);
 			NEXT_ARG();
 			ret = get_sci(&sci->sci, *argv);
 			if (ret)
-				invarg("expected sci", *argv);
+				return invarg("expected sci", *argv);
 			s = true;
 		} else if (strcmp(*argv, "port") == 0) {
 			NEXT_ARG();
 			ret = get_port(&sci->port, *argv);
 			if (ret)
-				invarg("expected port", *argv);
+				return invarg("expected port", *argv);
 			if (sci->port == 0)
-				invarg("expected port != 0", *argv);
+				return invarg("expected port != 0", *argv);
 			p = true;
 		} else if (strcmp(*argv, "address") == 0) {
 			NEXT_ARG();
 			ret = ll_addr_a2n(sci->abuf, sizeof(sci->abuf), *argv);
 			if (ret < 0)
-				invarg("expected lladdr", *argv);
+				return invarg("expected lladdr", *argv);
 			a = true;
 		} else if (optional) {
 			break;
 		} else {
-			invarg("expected sci, port, or address", *argv);
+			return invarg("expected sci, port, or address", *argv);
 		}
 
 		argv++; argc--;
@@ -311,7 +312,7 @@ static bool parse_rxsci(int *argcp, char ***argvp, struct rxsc_desc *rxsc,
 	if (*argcp == 0 ||
 	    get_sci_portaddr(&sci, argcp, argvp, false, false) < 0) {
 		fprintf(stderr, "expected sci\n");
-		ipmacsec_usage();
+		return ipmacsec_usage();
 	}
 
 	rxsc->sci = sci.sci;
@@ -328,18 +329,18 @@ static int parse_rxsci_args(int *argcp, char ***argvp, struct rxsc_desc *rxsc)
 	while (argc > 0) {
 		if (strcmp(*argv, "on") == 0) {
 			if (active_set)
-				duparg2("on/off", "on");
+				return duparg2("on/off", "on");
 			rxsc->active = true;
 			active_set = true;
 		} else if (strcmp(*argv, "off") == 0) {
 			if (active_set)
-				duparg2("on/off", "off");
+				return duparg2("on/off", "off");
 			rxsc->active = false;
 			active_set = true;
 		} else {
 			fprintf(stderr, "macsec: unknown command \"%s\"?\n",
 				*argv);
-			ipmacsec_usage();
+			return ipmacsec_usage();
 		}
 
 		argv++; argc--;
@@ -459,7 +460,7 @@ static int do_modify_txsa(enum cmd c, int argc, char **argv, int ifindex)
 	txsa.active = 0xff;
 
 	if (argc == 0 || !get_sa(&argc, &argv, &txsa.an))
-		ipmacsec_usage();
+		return ipmacsec_usage();
 
 	if (c == CMD_DEL)
 		goto modify;
@@ -508,7 +509,7 @@ static int do_modify(enum cmd c, int argc, char **argv)
 	int ifindex;
 
 	if (argc == 0)
-		ipmacsec_usage();
+		return ipmacsec_usage();
 
 	ifindex = ll_name_to_index(*argv);
 	if (!ifindex) {
@@ -518,7 +519,7 @@ static int do_modify(enum cmd c, int argc, char **argv)
 	argc--; argv++;
 
 	if (argc == 0)
-		ipmacsec_usage();
+		return ipmacsec_usage();
 
 	if (strcmp(*argv, "tx") == 0)
 		return do_modify_txsa(c, argc-1, argv+1, ifindex);
@@ -654,7 +655,7 @@ static __u64 getattr_u64(struct rtattr *stat)
 	default:
 		fprintf(stderr, "invalid attribute length %lu\n",
 			RTA_PAYLOAD(stat));
-		exit(-1);
+		iprt_exit(-1);
 	}
 }
 
@@ -1006,14 +1007,15 @@ static int do_dump(int ifindex)
 	req.n.nlmsg_seq = genl_rth.dump = ++genl_rth.seq;
 	if (rtnl_send(&genl_rth, &req, req.n.nlmsg_len) < 0) {
 		perror("Failed to send dump request");
-		exit(1);
+		iprt_exit(1);
 	}
 
-	new_json_obj(json);
+	if (new_json_obj(json))
+		return -1;
 	if (rtnl_dump_filter(&genl_rth, process, stdout) < 0) {
 		delete_json_obj();
 		fprintf(stderr, "Dump terminated\n");
-		exit(1);
+		iprt_exit(1);
 	}
 	delete_json_obj();
 
@@ -1044,13 +1046,13 @@ static int do_show(int argc, char **argv)
 int do_ipmacsec(int argc, char **argv)
 {
 	if (argc < 1)
-		ipmacsec_usage();
+		return ipmacsec_usage();
 
 	if (matches(*argv, "help") == 0)
-		ipmacsec_usage();
+		return ipmacsec_usage();
 
 	if (genl_init_handle(&genl_rth, MACSEC_GENL_NAME, &genl_family))
-		exit(1);
+		iprt_exit(1);
 
 	if (matches(*argv, "show") == 0)
 		return do_show(argc-1, argv+1);
@@ -1064,7 +1066,7 @@ int do_ipmacsec(int argc, char **argv)
 
 	fprintf(stderr, "Command \"%s\" is unknown, try \"ip macsec help\".\n",
 		*argv);
-	exit(-1);
+	iprt_exit(-1);
 }
 
 /* device creation */
@@ -1215,19 +1217,20 @@ static int macsec_parse_opt(struct link_util *lu, int argc, char **argv,
 		if (strcmp(*argv, "cipher") == 0) {
 			NEXT_ARG();
 			if (cipher.id)
-				duparg("cipher", *argv);
+				return duparg("cipher", *argv);
 			if (strcmp(*argv, "default") == 0 ||
 			    strcmp(*argv, "gcm-aes-128") == 0 ||
 			    strcmp(*argv, "GCM-AES-128") == 0)
 				cipher.id = MACSEC_DEFAULT_CIPHER_ID;
 			else
-				invarg("expected: default or gcm-aes-128",
+				return invarg("expected: default or gcm-aes-128",
 				       *argv);
 		} else if (strcmp(*argv, "icvlen") == 0) {
 			NEXT_ARG();
 			if (cipher.icv_len)
-				duparg("icvlen", *argv);
-			get_icvlen(&cipher.icv_len, *argv);
+				return duparg("icvlen", *argv);
+			if (get_icvlen(&cipher.icv_len, *argv))
+				return -1;
 		} else if (strcmp(*argv, "encrypt") == 0) {
 			NEXT_ARG();
 			int i;
@@ -1290,7 +1293,7 @@ static int macsec_parse_opt(struct link_util *lu, int argc, char **argv,
 			NEXT_ARG();
 			ret = get_u32(&window, *argv, 0);
 			if (ret)
-				invarg("expected replay window size", *argv);
+				return invarg("expected replay window size", *argv);
 		} else if (strcmp(*argv, "validate") == 0) {
 			NEXT_ARG();
 			ret = one_of("validate", *argv,
@@ -1302,11 +1305,11 @@ static int macsec_parse_opt(struct link_util *lu, int argc, char **argv,
 				 IFLA_MACSEC_VALIDATION, validate);
 		} else if (strcmp(*argv, "encodingsa") == 0) {
 			if (encoding_sa != 0xff)
-				duparg2("encodingsa", "encodingsa");
+				return duparg2("encodingsa", "encodingsa");
 			NEXT_ARG();
 			ret = get_an(&encoding_sa, *argv);
 			if (ret)
-				invarg("expected an { 0..3 }", *argv);
+				return invarg("expected an { 0..3 }", *argv);
 		} else {
 			fprintf(stderr, "macsec: unknown command \"%s\"?\n",
 				*argv);

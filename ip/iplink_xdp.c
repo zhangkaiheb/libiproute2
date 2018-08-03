@@ -64,7 +64,7 @@ int xdp_parse(int *argc, char ***argv, struct iplink_req *req,
 		int ifindex = ll_name_to_index(ifname);
 
 		if (!ifindex)
-			incomplete_command();
+			return incomplete_command();
 		cfg.ifindex = ifindex;
 	}
 
