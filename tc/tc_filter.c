@@ -92,7 +92,7 @@ static int tc_filter_modify(int cmd, unsigned int flags, int argc, char **argv,
 		if (strcmp(*argv, "dev") == 0) {
 			NEXT_ARG();
 			if (d[0])
-				duparg("dev", *argv);
+				return duparg("dev", *argv);
 			if (block_index) {
 				fprintf(stderr, "Error: \"dev\" and \"block\" are mutually exlusive\n");
 				return -1;
@@ -101,13 +101,13 @@ static int tc_filter_modify(int cmd, unsigned int flags, int argc, char **argv,
 		} else if (matches(*argv, "block") == 0) {
 			NEXT_ARG();
 			if (block_index)
-				duparg("block", *argv);
+				return duparg("block", *argv);
 			if (d[0]) {
 				fprintf(stderr, "Error: \"dev\" and \"block\" are mutually exlusive\n");
 				return -1;
 			}
 			if (get_u32(&block_index, *argv, 0) || !block_index)
-				invarg("invalid block index value", *argv);
+				return invarg("invalid block index value", *argv);
 		} else if (strcmp(*argv, "root") == 0) {
 			if (req->t.tcm_parent) {
 				fprintf(stderr,
@@ -136,38 +136,38 @@ static int tc_filter_modify(int cmd, unsigned int flags, int argc, char **argv,
 
 			NEXT_ARG();
 			if (req->t.tcm_parent)
-				duparg("parent", *argv);
+				return duparg("parent", *argv);
 			if (get_tc_classid(&handle, *argv))
-				invarg("Invalid parent ID", *argv);
+				return invarg("Invalid parent ID", *argv);
 			req->t.tcm_parent = handle;
 		} else if (strcmp(*argv, "handle") == 0) {
 			NEXT_ARG();
 			if (fhandle)
-				duparg("handle", *argv);
+				return duparg("handle", *argv);
 			fhandle = *argv;
 		} else if (matches(*argv, "preference") == 0 ||
 			   matches(*argv, "priority") == 0) {
 			NEXT_ARG();
 			if (prio)
-				duparg("priority", *argv);
+				return duparg("priority", *argv);
 			if (get_u32(&prio, *argv, 0) || prio > 0xFFFF)
-				invarg("invalid priority value", *argv);
+				return invarg("invalid priority value", *argv);
 		} else if (matches(*argv, "protocol") == 0) {
 			__u16 id;
 
 			NEXT_ARG();
 			if (protocol_set)
-				duparg("protocol", *argv);
+				return duparg("protocol", *argv);
 			if (ll_proto_a2n(&id, *argv))
-				invarg("invalid protocol", *argv);
+				return invarg("invalid protocol", *argv);
 			protocol = id;
 			protocol_set = 1;
 		} else if (matches(*argv, "chain") == 0) {
 			NEXT_ARG();
 			if (chain_index_set)
-				duparg("chain", *argv);
+				return duparg("chain", *argv);
 			if (get_u32(&chain_index, *argv, 0))
-				invarg("invalid chain index value", *argv);
+				return invarg("invalid chain index value", *argv);
 			chain_index_set = 1;
 		} else if (matches(*argv, "estimator") == 0) {
 			if (parse_estimator(&argc, &argv, &est) < 0)
@@ -403,7 +403,7 @@ static int tc_filter_get(int cmd, unsigned int flags, int argc, char **argv)
 		if (strcmp(*argv, "dev") == 0) {
 			NEXT_ARG();
 			if (d[0])
-				duparg("dev", *argv);
+				return duparg("dev", *argv);
 			if (block_index) {
 				fprintf(stderr, "Error: \"dev\" and \"block\" are mutually exlusive\n");
 				return -1;
@@ -412,13 +412,13 @@ static int tc_filter_get(int cmd, unsigned int flags, int argc, char **argv)
 		} else if (matches(*argv, "block") == 0) {
 			NEXT_ARG();
 			if (block_index)
-				duparg("block", *argv);
+				return duparg("block", *argv);
 			if (d[0]) {
 				fprintf(stderr, "Error: \"dev\" and \"block\" are mutually exlusive\n");
 				return -1;
 			}
 			if (get_u32(&block_index, *argv, 0) || !block_index)
-				invarg("invalid block index value", *argv);
+				return invarg("invalid block index value", *argv);
 		} else if (strcmp(*argv, "root") == 0) {
 			if (req.t.tcm_parent) {
 				fprintf(stderr,
@@ -446,45 +446,45 @@ static int tc_filter_get(int cmd, unsigned int flags, int argc, char **argv)
 
 			NEXT_ARG();
 			if (req.t.tcm_parent)
-				duparg("parent", *argv);
+				return duparg("parent", *argv);
 			if (get_tc_classid(&parent_handle, *argv))
-				invarg("Invalid parent ID", *argv);
+				return invarg("Invalid parent ID", *argv);
 			req.t.tcm_parent = parent_handle;
 		} else if (strcmp(*argv, "handle") == 0) {
 			NEXT_ARG();
 			if (fhandle)
-				duparg("handle", *argv);
+				return duparg("handle", *argv);
 			fhandle = *argv;
 		} else if (matches(*argv, "preference") == 0 ||
 			   matches(*argv, "priority") == 0) {
 			NEXT_ARG();
 			if (prio)
-				duparg("priority", *argv);
+				return duparg("priority", *argv);
 			if (get_u32(&prio, *argv, 0) || prio > 0xFFFF)
-				invarg("invalid priority value", *argv);
+				return invarg("invalid priority value", *argv);
 		} else if (matches(*argv, "protocol") == 0) {
 			__u16 id;
 
 			NEXT_ARG();
 			if (protocol_set)
-				duparg("protocol", *argv);
+				return duparg("protocol", *argv);
 			if (ll_proto_a2n(&id, *argv))
-				invarg("invalid protocol", *argv);
+				return invarg("invalid protocol", *argv);
 			protocol = id;
 			protocol_set = 1;
 		} else if (matches(*argv, "chain") == 0) {
 			NEXT_ARG();
 			if (chain_index_set)
-				duparg("chain", *argv);
+				return duparg("chain", *argv);
 			if (get_u32(&chain_index, *argv, 0))
-				invarg("invalid chain index value", *argv);
+				return invarg("invalid chain index value", *argv);
 			chain_index_set = 1;
 		} else if (matches(*argv, "help") == 0) {
 			usage();
 			return 0;
 		} else {
 			if (!**argv)
-				invarg("invalid filter name", *argv);
+				return invarg("invalid filter name", *argv);
 
 			strncpy(k, *argv, sizeof(k)-1);
 
@@ -561,7 +561,8 @@ static int tc_filter_get(int cmd, unsigned int flags, int argc, char **argv)
 		return 2;
 	}
 
-	new_json_obj(json);
+	if (new_json_obj(json))
+		return -1;
 	print_filter(NULL, answer, (void *)stdout);
 	delete_json_obj();
 
@@ -592,7 +593,7 @@ static int tc_filter_list(int argc, char **argv)
 		if (strcmp(*argv, "dev") == 0) {
 			NEXT_ARG();
 			if (d[0])
-				duparg("dev", *argv);
+				return duparg("dev", *argv);
 			if (block_index) {
 				fprintf(stderr, "Error: \"dev\" cannot be used in the same time as \"block\"\n");
 				return -1;
@@ -601,13 +602,13 @@ static int tc_filter_list(int argc, char **argv)
 		} else if (matches(*argv, "block") == 0) {
 			NEXT_ARG();
 			if (block_index)
-				duparg("block", *argv);
+				return duparg("block", *argv);
 			if (d[0]) {
 				fprintf(stderr, "Error: \"block\" cannot be used in the same time as \"dev\"\n");
 				return -1;
 			}
 			if (get_u32(&block_index, *argv, 0) || !block_index)
-				invarg("invalid block index value", *argv);
+				return invarg("invalid block index value", *argv);
 		} else if (strcmp(*argv, "root") == 0) {
 			if (req.t.tcm_parent) {
 				fprintf(stderr,
@@ -638,39 +639,39 @@ static int tc_filter_list(int argc, char **argv)
 
 			NEXT_ARG();
 			if (req.t.tcm_parent)
-				duparg("parent", *argv);
+				return duparg("parent", *argv);
 			if (get_tc_classid(&handle, *argv))
-				invarg("invalid parent ID", *argv);
+				return invarg("invalid parent ID", *argv);
 			filter_parent = req.t.tcm_parent = handle;
 		} else if (strcmp(*argv, "handle") == 0) {
 			NEXT_ARG();
 			if (fhandle)
-				duparg("handle", *argv);
+				return duparg("handle", *argv);
 			fhandle = *argv;
 		} else if (matches(*argv, "preference") == 0 ||
 			   matches(*argv, "priority") == 0) {
 			NEXT_ARG();
 			if (prio)
-				duparg("priority", *argv);
+				return duparg("priority", *argv);
 			if (get_u32(&prio, *argv, 0))
-				invarg("invalid preference", *argv);
+				return invarg("invalid preference", *argv);
 			filter_prio = prio;
 		} else if (matches(*argv, "protocol") == 0) {
 			__u16 res;
 
 			NEXT_ARG();
 			if (protocol)
-				duparg("protocol", *argv);
+				return duparg("protocol", *argv);
 			if (ll_proto_a2n(&res, *argv))
-				invarg("invalid protocol", *argv);
+				return invarg("invalid protocol", *argv);
 			protocol = res;
 			filter_protocol = protocol;
 		} else if (matches(*argv, "chain") == 0) {
 			NEXT_ARG();
 			if (filter_chain_index_set)
-				duparg("chain", *argv);
+				return duparg("chain", *argv);
 			if (get_u32(&chain_index, *argv, 0))
-				invarg("invalid chain index value", *argv);
+				return invarg("invalid chain index value", *argv);
 			filter_chain_index_set = 1;
 			filter_chain_index = chain_index;
 		} else if (matches(*argv, "help") == 0) {
@@ -712,7 +713,8 @@ static int tc_filter_list(int argc, char **argv)
 		return 1;
 	}
 
-	new_json_obj(json);
+	if (new_json_obj(json))
+		return -1;
 	if (rtnl_dump_filter(&rth, print_filter, stdout) < 0) {
 		fprintf(stderr, "Dump terminated\n");
 		return 1;

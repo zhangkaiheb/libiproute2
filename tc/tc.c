@@ -525,7 +525,7 @@ int main(int argc, char **argv)
 	tc_core_init();
 	if (rtnl_open(&rth, 0) < 0) {
 		fprintf(stderr, "Cannot open rtnetlink\n");
-		exit(1);
+		iprt_exit(1);
 	}
 
 	if (use_names && cls_names_init(conf_file)) {

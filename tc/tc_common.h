@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 
+#include "iprt.h"
+
 #define TCA_BUF_MAX	(64*1024)
 #define MSG_IOV_MAX	128
 

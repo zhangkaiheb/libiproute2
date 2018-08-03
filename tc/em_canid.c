@@ -115,22 +115,22 @@ static int canid_parse_eopt(struct nlmsghdr *n, struct tcf_ematch_hdr *hdr,
 			iseff = 1;
 		} else {
 			ret = PARSE_ERR(args, "canid: invalid key");
-			goto exit;
+			goto iprt_exit;
 		}
 
 		args = bstr_next(args);
 		if (args == NULL) {
 			ret = PARSE_ERR(args, "canid: missing argument");
-			goto exit;
+			goto iprt_exit;
 		}
 
 		ret = canid_parse_rule(&rules, args, iseff);
 		if (ret == -1) {
 			ret = PARSE_ERR(args, "canid: Improperly formed CAN ID & mask\n");
-			goto exit;
+			goto iprt_exit;
 		} else if (ret == -2) {
 			ret = PARSE_ERR(args, "canid: Too many arguments on input\n");
-			goto exit;
+			goto iprt_exit;
 		}
 	} while ((args = bstr_next(args)) != NULL);
 
@@ -139,7 +139,7 @@ static int canid_parse_eopt(struct nlmsghdr *n, struct tcf_ematch_hdr *hdr,
 		sizeof(struct can_filter) * rules.rules_cnt);
 
 #undef PARSE_ERR
-exit:
+iprt_exit:
 	free(rules.rules_raw);
 	return ret;
 }

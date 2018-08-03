@@ -212,12 +212,12 @@ int yylex(void)
 					len = strnlen(argbuf, sizeof(argbuf));
 					if (len == 0) {
 						fprintf(stderr, "Invalid line\n");
-						exit(-1);
+						iprt_exit(-1);
 					}
 
 					if (len >= sizeof(argbuf) - 1) {
 						fprintf(stderr, "Too long line in filter\n");
-						exit(-1);
+						iprt_exit(-1);
 					}
 					if (argbuf[len - 1] == '\n')
 						argbuf[len-1] = 0;
@@ -300,7 +300,7 @@ int yylex(void)
 		yylval = (void*)parse_devcond(curtok);
 		if (yylval == NULL) {
 			fprintf(stderr, "Cannot parse device.\n");
-			exit(1);
+			iprt_exit(1);
 		}
 		return DEVCOND;
 	}
@@ -308,14 +308,14 @@ int yylex(void)
 		yylval = (void*)parse_markmask(curtok);
 		if (yylval == NULL) {
 			fprintf(stderr, "Cannot parse mark %s.\n", curtok);
-			exit(1);
+			iprt_exit(1);
 		}
 		return MARKMASK;
 	}
 	yylval = (void*)parse_hostcond(curtok, tok_type == SPORT || tok_type == DPORT);
 	if (yylval == NULL) {
 		fprintf(stderr, "Cannot parse dst/src address.\n");
-		exit(1);
+		iprt_exit(1);
 	}
 	return HOSTCOND;
 }

@@ -29,6 +29,7 @@
 #include <signal.h>
 #include <math.h>
 
+#include "iprt.h"
 #include "rt_names.h"
 
 #include <SNAPSHOT.h>
@@ -76,7 +77,7 @@ static struct rtacct_data kern_db_static;
 static struct rtacct_data *kern_db = &kern_db_static;
 static struct rtacct_data *hist_db;
 
-static void nread(int fd, char *buf, int tot)
+static int nread(int fd, char *buf, int tot)
 {
 	int count = 0;
 
@@ -86,18 +87,20 @@ static void nread(int fd, char *buf, int tot)
 		if (n < 0) {
 			if (errno == EINTR)
 				continue;
-			exit(-1);
+			iprt_exit(-1);
 		}
 		if (n == 0)
-			exit(-1);
+			iprt_exit(-1);
 		count += n;
 	}
+	return 0;
 }
 
 static __u32 *read_kern_table(__u32 *tbl)
 {
 	static __u32 *tbl_ptr;
 	int fd;
+	int ret;
 
 	if (magic_number) {
 		if (tbl_ptr != NULL)
@@ -106,7 +109,7 @@ static __u32 *read_kern_table(__u32 *tbl)
 		fd = open("/dev/mem", O_RDONLY);
 		if (fd < 0) {
 			perror("magic open");
-			exit(-1);
+			iprt_exit(NULL);
 		}
 		tbl_ptr = mmap(NULL, 4096,
 			       PROT_READ,
@@ -114,7 +117,7 @@ static __u32 *read_kern_table(__u32 *tbl)
 			       fd, magic_number);
 		if ((unsigned long)tbl_ptr == ~0UL) {
 			perror("magic mmap");
-			exit(-1);
+			iprt_exit(NULL);
 		}
 		close(fd);
 		return tbl_ptr;
@@ -122,8 +125,10 @@ static __u32 *read_kern_table(__u32 *tbl)
 
 	fd = net_rtacct_open();
 	if (fd >= 0) {
-		nread(fd, (char *)tbl, 256*16);
+		ret = nread(fd, (char *)tbl, 256*16);
 		close(fd);
+		if (ret)
+			return NULL;
 	} else {
 		memset(tbl, 0, 256*16);
 	}
@@ -352,7 +357,7 @@ static void pad_kern_table(struct rtacct_data *dat, __u32 *ival)
 		dat->val[i] = ival[i];
 }
 
-static void server_loop(int fd)
+static int server_loop(int fd)
 {
 	struct timeval snaptime = { 0 };
 	struct pollfd p;
@@ -396,13 +401,14 @@ static void server_loop(int fd)
 					if (tdiff > 0)
 						update_db(tdiff);
 					send_db(clnt);
-					exit(0);
+					iprt_exit(0);
 				}
 			}
 		}
 		while (children && waitpid(-1, &status, WNOHANG) > 0)
 			children--;
 	}
+	return 0;
 }
 
 static int verify_forging(int fd)
@@ -418,14 +424,12 @@ static int verify_forging(int fd)
 	return -1;
 }
 
-static void usage(void) __attribute__((noreturn));
-
-static void usage(void)
+static int usage(void)
 {
 	fprintf(stderr,
 "Usage: rtacct [ -h?vVzrnasd:t: ] [ ListOfRealms ]\n"
 		);
-	exit(-1);
+	iprt_exit(-1);
 }
 
 int main(int argc, char *argv[])
@@ -434,6 +438,7 @@ int main(int argc, char *argv[])
 	struct sockaddr_un sun;
 	int ch;
 	int fd;
+	int ret;
 
 	while ((ch = getopt(argc, argv, "h?vVzrM:nasd:t:")) != EOF) {
 		switch (ch) {
@@ -459,13 +464,13 @@ int main(int argc, char *argv[])
 			if (sscanf(optarg, "%d", &time_constant) != 1 ||
 			    time_constant <= 0) {
 				fprintf(stderr, "rtacct: invalid time constant divisor\n");
-				exit(-1);
+				iprt_exit(-1);
 			}
 			break;
 		case 'v':
 		case 'V':
 			printf("rtacct utility, iproute2-ss%s\n", SNAPSHOT);
-			exit(0);
+			iprt_exit(0);
 		case 'M':
 			/* Some secret undocumented option, nobody
 			 * is expected to ask about its sense. See?
@@ -475,7 +480,7 @@ int main(int argc, char *argv[])
 		case 'h':
 		case '?':
 		default:
-			usage();
+			return usage();
 		}
 	}
 
@@ -488,7 +493,7 @@ int main(int argc, char *argv[])
 
 			if (rtnl_rtrealm_a2n(&realm, argv[0])) {
 				fprintf(stderr, "Warning: realm \"%s\" does not exist.\n", argv[0]);
-				exit(-1);
+				iprt_exit(-1);
 			}
 			rmap[realm>>5] |= (1<<(realm&0x1f));
 			argc--; argv++;
@@ -510,24 +515,24 @@ int main(int argc, char *argv[])
 		W = 1 - 1/exp(log(10)*(double)scan_interval/time_constant);
 		if ((fd = socket(AF_UNIX, SOCK_STREAM, 0)) < 0) {
 			perror("rtacct: socket");
-			exit(-1);
+			iprt_exit(-1);
 		}
 		if (bind(fd, (struct sockaddr *)&sun, 2+1+strlen(sun.sun_path+1)) < 0) {
 			perror("rtacct: bind");
-			exit(-1);
+			iprt_exit(-1);
 		}
 		if (listen(fd, 5) < 0) {
 			perror("rtacct: listen");
-			exit(-1);
+			iprt_exit(-1);
 		}
 		if (daemon(0, 0)) {
 			perror("rtacct: daemon");
-			exit(-1);
+			iprt_exit(-1);
 		}
 		signal(SIGPIPE, SIG_IGN);
 		signal(SIGCHLD, sigchild);
 		server_loop(fd);
-		exit(0);
+		iprt_exit(0);
 	}
 
 	if (getenv("RTACCT_HISTORY"))
@@ -544,24 +549,24 @@ int main(int argc, char *argv[])
 		fd = open(hist_name, O_RDWR|O_CREAT|O_NOFOLLOW, 0600);
 		if (fd < 0) {
 			perror("rtacct: open history file");
-			exit(-1);
+			iprt_exit(-1);
 		}
 		if (flock(fd, LOCK_EX)) {
 			perror("rtacct: flock history file");
-			exit(-1);
+			iprt_exit(-1);
 		}
 		if (fstat(fd, &stb) != 0) {
 			perror("rtacct: fstat history file");
-			exit(-1);
+			iprt_exit(-1);
 		}
 		if (stb.st_nlink != 1 || stb.st_uid != getuid()) {
 			fprintf(stderr, "rtacct: something is so wrong with history file, that I prefer not to proceed.\n");
-			exit(-1);
+			iprt_exit(-1);
 		}
 		if (stb.st_size != sizeof(*hist_db))
 			if (write(fd, kern_db, sizeof(*hist_db)) < 0) {
 				perror("rtacct: write history file");
-				exit(-1);
+				iprt_exit(-1);
 			}
 
 		hist_db = mmap(NULL, sizeof(*hist_db),
@@ -571,7 +576,7 @@ int main(int argc, char *argv[])
 
 		if ((unsigned long)hist_db == ~0UL) {
 			perror("mmap");
-			exit(-1);
+			iprt_exit(-1);
 		}
 
 		if (!ignore_history) {
@@ -598,7 +603,11 @@ int main(int argc, char *argv[])
 	     || (strcpy(sun.sun_path+1, "rtacct0"),
 		 connect(fd, (struct sockaddr *)&sun, 2+1+strlen(sun.sun_path+1)) == 0))
 	    && verify_forging(fd) == 0) {
-		nread(fd, (char *)kern_db, sizeof(*kern_db));
+		ret = nread(fd, (char *)kern_db, sizeof(*kern_db));
+		if (ret) {
+			close(fd);
+			return -1;
+		}
 		if (hist_db && hist_db->signature[0] &&
 		    strcmp(kern_db->signature, hist_db->signature)) {
 			fprintf(stderr, "rtacct: history is stale, ignoring it.\n");
@@ -624,5 +633,5 @@ int main(int argc, char *argv[])
 	else
 		dump_incr_db(stdout);
 
-	exit(0);
+	iprt_exit(0);
 }

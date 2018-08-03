@@ -62,33 +62,33 @@ int parse_size_table(int *argcp, char ***argvp, struct tc_sizespec *sp)
 		if (matches(*argv, "mtu") == 0) {
 			NEXT_ARG();
 			if (s.mtu)
-				duparg("mtu", *argv);
+				return duparg("mtu", *argv);
 			if (get_u32(&s.mtu, *argv, 10))
-				invarg("mtu", "invalid mtu");
+				return invarg("mtu", "invalid mtu");
 		} else if (matches(*argv, "mpu") == 0) {
 			NEXT_ARG();
 			if (s.mpu)
-				duparg("mpu", *argv);
+				return duparg("mpu", *argv);
 			if (get_u32(&s.mpu, *argv, 10))
-				invarg("mpu", "invalid mpu");
+				return invarg("mpu", "invalid mpu");
 		} else if (matches(*argv, "overhead") == 0) {
 			NEXT_ARG();
 			if (s.overhead)
-				duparg("overhead", *argv);
+				return duparg("overhead", *argv);
 			if (get_integer(&s.overhead, *argv, 10))
-				invarg("overhead", "invalid overhead");
+				return invarg("overhead", "invalid overhead");
 		} else if (matches(*argv, "tsize") == 0) {
 			NEXT_ARG();
 			if (s.tsize)
-				duparg("tsize", *argv);
+				return duparg("tsize", *argv);
 			if (get_u32(&s.tsize, *argv, 10))
-				invarg("tsize", "invalid table size");
+				return invarg("tsize", "invalid table size");
 		} else if (matches(*argv, "linklayer") == 0) {
 			NEXT_ARG();
 			if (s.linklayer != LINKLAYER_UNSPEC)
-				duparg("linklayer", *argv);
+				return duparg("linklayer", *argv);
 			if (get_linklayer(&s.linklayer, *argv))
-				invarg("linklayer", "invalid linklayer");
+				return invarg("linklayer", "invalid linklayer");
 		} else
 			break;
 		argc--; argv++;

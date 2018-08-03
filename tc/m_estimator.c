@@ -41,16 +41,16 @@ int parse_estimator(int *p_argc, char ***p_argv, struct tc_estimator *est)
 
 	NEXT_ARG();
 	if (est->ewma_log)
-		duparg("estimator", *argv);
+		return duparg("estimator", *argv);
 	if (matches(*argv, "help") == 0)
 		est_help();
 	if (get_time(&A, *argv))
-		invarg("estimator", "invalid estimator interval");
+		return invarg("estimator", "invalid estimator interval");
 	NEXT_ARG();
 	if (matches(*argv, "help") == 0)
 		est_help();
 	if (get_time(&time_const, *argv))
-		invarg("estimator", "invalid estimator time constant");
+		return invarg("estimator", "invalid estimator time constant");
 	if (tc_setup_estimator(A, time_const, est) < 0) {
 		fprintf(stderr, "Error: estimator parameters are out of range.\n");
 		return -1;

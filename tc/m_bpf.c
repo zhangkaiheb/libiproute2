@@ -97,7 +97,7 @@ static int bpf_parse_opt(struct action_util *a, int *ptr_argc, char ***ptr_argv,
 			NEXT_ARG();
 
 			if (seen_run)
-				duparg("run", *argv);
+				return duparg("run", *argv);
 opt_bpf:
 			seen_run = true;
 			cfg.type = bpf_type;

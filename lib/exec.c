@@ -4,6 +4,7 @@
 #include <errno.h>
 #include <unistd.h>
 
+#include "iprt.h"
 #include "utils.h"
 
 int cmd_exec(const char *cmd, char **argv, bool do_fork)
@@ -16,26 +17,26 @@ int cmd_exec(const char *cmd, char **argv, bool do_fork)
 		pid = fork();
 		if (pid < 0) {
 			perror("fork");
-			exit(1);
+			iprt_exit(1);
 		}
 
 		if (pid != 0) {
 			/* Parent  */
 			if (waitpid(pid, &status, 0) < 0) {
 				perror("waitpid");
-				exit(1);
+				iprt_exit(1);
 			}
 
 			if (WIFEXITED(status)) {
 				return WEXITSTATUS(status);
 			}
 
-			exit(1);
+			iprt_exit(1);
 		}
 	}
 
 	if (execvp(cmd, argv)  < 0)
 		fprintf(stderr, "exec of \"%s\" failed: %s\n",
 				cmd, strerror(errno));
-	_exit(1);
+	_iprt_exit(1);
 }

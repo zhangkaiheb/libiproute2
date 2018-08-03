@@ -29,10 +29,10 @@ static void explain(void)
 	fprintf(stderr, "\tINDEX := integer index of the sample action\n");
 }
 
-static void usage(void)
+static int usage(void)
 {
 	explain();
-	exit(-1);
+	iprt_exit(-1);
 }
 
 static int parse_sample(struct action_util *a, int *argc_p, char ***argv_p,
@@ -90,7 +90,7 @@ static int parse_sample(struct action_util *a, int *argc_p, char ***argv_p,
 			}
 			trunc_set = true;
 		} else if (matches(*argv, "help") == 0) {
-			usage();
+			return usage();
 		} else {
 			break;
 		}
@@ -113,12 +113,12 @@ static int parse_sample(struct action_util *a, int *argc_p, char ***argv_p,
 
 	if (!p.index && !group_set) {
 		fprintf(stderr, "param \"group\" not set\n");
-		usage();
+		return usage();
 	}
 
 	if (!p.index && !rate_set) {
 		fprintf(stderr, "param \"rate\" not set\n");
-		usage();
+		return usage();
 	}
 
 	tail = addattr_nest(n, MAX_MSG, tca_id);

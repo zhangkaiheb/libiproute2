@@ -28,11 +28,11 @@ explain(void)
 			"       SWEETS := { and | or | \'+\' }\n");
 }
 
-static void
+static int
 usage(void)
 {
 	explain();
-	exit(-1);
+	iprt_exit(-1);
 }
 
 static int
@@ -107,7 +107,7 @@ parse_csum(struct action_util *a, int *argc_p,
 			ok++;
 			continue;
 		} else if (matches(*argv, "help") == 0) {
-			usage();
+			return usage();
 		} else {
 			break;
 		}

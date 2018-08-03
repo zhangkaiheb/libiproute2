@@ -451,7 +451,7 @@ static void update_db(int interval)
 #define T_DIFF(a, b) (((a).tv_sec-(b).tv_sec)*1000 + ((a).tv_usec-(b).tv_usec)/1000)
 
 
-static void server_loop(int fd)
+static int server_loop(int fd)
 {
 	struct timeval snaptime = { 0 };
 	struct pollfd p;
@@ -497,13 +497,14 @@ static void server_loop(int fd)
 
 					if (fp)
 						dump_kern_db(fp, 0);
-					exit(0);
+					iprt_exit(0);
 				}
 			}
 		}
 		while (children && waitpid(-1, &status, WNOHANG) > 0)
 			children--;
 	}
+	return 0;
 }
 
 static int verify_forging(int fd)
@@ -519,9 +520,7 @@ static int verify_forging(int fd)
 	return -1;
 }
 
-static void usage(void) __attribute__((noreturn));
-
-static void usage(void)
+static int usage(void)
 {
 	fprintf(stderr,
 "Usage: nstat [OPTION] [ PATTERN [ PATTERN ] ]\n"
@@ -536,7 +535,7 @@ static void usage(void)
 "   -t, --interval=SECS  report average over the last SECS\n"
 "   -V, --version        output version information\n"
 "   -z, --zeros          show entries with zero activity\n");
-	exit(-1);
+	iprt_exit(-1);
 }
 
 static const struct option longopts[] = {
@@ -587,7 +586,7 @@ int main(int argc, char *argv[])
 			if (sscanf(optarg, "%d", &time_constant) != 1 ||
 			    time_constant <= 0) {
 				fprintf(stderr, "nstat: invalid time constant divisor\n");
-				exit(-1);
+				iprt_exit(-1);
 			}
 			break;
 		case 'j':
@@ -599,11 +598,11 @@ int main(int argc, char *argv[])
 		case 'v':
 		case 'V':
 			printf("nstat utility, iproute2-ss%s\n", SNAPSHOT);
-			exit(0);
+			iprt_exit(0);
 		case 'h':
 		case '?':
 		default:
-			usage();
+			return usage();
 		}
 	}
 
@@ -621,24 +620,24 @@ int main(int argc, char *argv[])
 		W = 1 - 1/exp(log(10)*(double)scan_interval/time_constant);
 		if ((fd = socket(AF_UNIX, SOCK_STREAM, 0)) < 0) {
 			perror("nstat: socket");
-			exit(-1);
+			iprt_exit(-1);
 		}
 		if (bind(fd, (struct sockaddr *)&sun, 2+1+strlen(sun.sun_path+1)) < 0) {
 			perror("nstat: bind");
-			exit(-1);
+			iprt_exit(-1);
 		}
 		if (listen(fd, 5) < 0) {
 			perror("nstat: listen");
-			exit(-1);
+			iprt_exit(-1);
 		}
 		if (daemon(0, 0)) {
 			perror("nstat: daemon");
-			exit(-1);
+			iprt_exit(-1);
 		}
 		signal(SIGPIPE, SIG_IGN);
 		signal(SIGCHLD, sigchild);
 		server_loop(fd);
-		exit(0);
+		iprt_exit(0);
 	}
 
 	patterns = argv;
@@ -658,23 +657,23 @@ int main(int argc, char *argv[])
 		fd = open(hist_name, O_RDWR|O_CREAT|O_NOFOLLOW, 0600);
 		if (fd < 0) {
 			perror("nstat: open history file");
-			exit(-1);
+			iprt_exit(-1);
 		}
 		if ((hist_fp = fdopen(fd, "r+")) == NULL) {
 			perror("nstat: fdopen history file");
-			exit(-1);
+			iprt_exit(-1);
 		}
 		if (flock(fileno(hist_fp), LOCK_EX)) {
 			perror("nstat: flock history file");
-			exit(-1);
+			iprt_exit(-1);
 		}
 		if (fstat(fileno(hist_fp), &stb) != 0) {
 			perror("nstat: fstat history file");
-			exit(-1);
+			iprt_exit(-1);
 		}
 		if (stb.st_nlink != 1 || stb.st_uid != getuid()) {
 			fprintf(stderr, "nstat: something is so wrong with history file, that I prefer not to proceed.\n");
-			exit(-1);
+			iprt_exit(-1);
 		}
 		if (!ignore_history) {
 			FILE *tfp;
@@ -748,5 +747,5 @@ int main(int argc, char *argv[])
 		dump_kern_db(hist_fp, 1);
 		fclose(hist_fp);
 	}
-	exit(0);
+	iprt_exit(0);
 }

@@ -554,7 +554,7 @@ skip_it:
 		}
 		if (msglen) {
 			fprintf(stderr, "!!!Remnant of size %d\n", msglen);
-			exit(1);
+			iprt_exit(1);
 		}
 	}
 }
@@ -628,7 +628,7 @@ next:
 			fprintf(stderr,
 				"sender address length == %d\n",
 				msg.msg_namelen);
-			exit(1);
+			iprt_exit(1);
 		}
 		for (h = (struct nlmsghdr *)buf; status >= sizeof(*h); ) {
 			int len = h->nlmsg_len;
@@ -643,7 +643,7 @@ next:
 				fprintf(stderr,
 					"!!!malformed message: len=%d\n",
 					len);
-				exit(1);
+				iprt_exit(1);
 			}
 
 			if (nladdr.nl_pid != 0 ||
@@ -703,7 +703,7 @@ next:
 
 		if (status) {
 			fprintf(stderr, "!!!Remnant of size %d\n", status);
-			exit(1);
+			iprt_exit(1);
 		}
 	}
 }
@@ -805,7 +805,7 @@ int rtnl_listen(struct rtnl_handle *rtnl,
 			fprintf(stderr,
 				"Sender address length == %d\n",
 				msg.msg_namelen);
-			exit(1);
+			iprt_exit(1);
 		}
 
 		if (rtnl->flags & RTNL_HANDLE_F_LISTEN_ALL_NSID) {
@@ -835,7 +835,7 @@ int rtnl_listen(struct rtnl_handle *rtnl,
 				fprintf(stderr,
 					"!!!malformed message: len=%d\n",
 					len);
-				exit(1);
+				iprt_exit(1);
 			}
 
 			err = handler(&nladdr, &ctrl, h, jarg);
@@ -851,7 +851,7 @@ int rtnl_listen(struct rtnl_handle *rtnl,
 		}
 		if (status) {
 			fprintf(stderr, "!!!Remnant of size %d\n", status);
-			exit(1);
+			iprt_exit(1);
 		}
 	}
 }

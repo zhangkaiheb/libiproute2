@@ -61,7 +61,7 @@ struct rtnl_handle rth;
 struct pollfd pset[2];
 int udp_sock = -1;
 
-volatile int do_exit;
+volatile int do_iprt_exit;
 volatile int do_sync;
 volatile int do_stats;
 
@@ -90,11 +90,11 @@ int broadcast_rate = 1000;
 int broadcast_burst = 3000;
 int poll_timeout = 30000;
 
-static void usage(void)
+static int usage(void)
 {
 	fprintf(stderr,
 		"Usage: arpd [ -lkh? ] [ -a N ] [ -b dbase ] [ -B number ] [ -f file ] [ -n time ] [-p interval ] [ -R rate ] [ interfaces ]\n");
-	exit(1);
+	iprt_exit(1);
 }
 
 static int handle_if(int ifindex)
@@ -426,7 +426,7 @@ static void load_initial_table(void)
 {
 	if (rtnl_wilddump_request(&rth, AF_INET, RTM_GETNEIGH) < 0) {
 		perror("dump request failed");
-		exit(1);
+		iprt_exit(1);
 	}
 
 }
@@ -597,7 +597,7 @@ int main(int argc, char **argv)
 		case 'f':
 			if (do_load) {
 				fprintf(stderr, "Duplicate option -f\n");
-				usage();
+				return usage();
 			}
 			do_load = optarg;
 			break;
@@ -616,27 +616,27 @@ int main(int argc, char **argv)
 		case 'p':
 			if ((poll_timeout = 1000 * strtod(optarg, NULL)) < 100) {
 				fprintf(stderr, "Invalid poll timeout\n");
-				exit(-1);
+				iprt_exit(-1);
 			}
 			break;
 		case 'R':
 			if ((broadcast_rate = atoi(optarg)) <= 0 ||
 			    (broadcast_rate = 1000/broadcast_rate) <= 0) {
 				fprintf(stderr, "Invalid ARP rate\n");
-				exit(-1);
+				iprt_exit(-1);
 			}
 			break;
 		case 'B':
 			if ((broadcast_burst = atoi(optarg)) <= 0 ||
 			    (broadcast_burst = 1000*broadcast_burst) <= 0) {
 				fprintf(stderr, "Invalid ARP burst\n");
-				exit(-1);
+				iprt_exit(-1);
 			}
 			break;
 		case 'h':
 		case '?':
 		default:
-			usage();
+			return usage();
 		}
 	}
 	argc -= optind;
@@ -648,13 +648,13 @@ int main(int argc, char **argv)
 		ifvec = malloc(argc*sizeof(int));
 		if (!ifvec) {
 			perror("malloc");
-			exit(-1);
+			iprt_exit(-1);
 		}
 	}
 
 	if ((udp_sock = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
 		perror("socket");
-		exit(-1);
+		iprt_exit(-1);
 	}
 
 	if (ifnum) {
@@ -663,10 +663,10 @@ int main(int argc, char **argv)
 
 		for (i = 0; i < ifnum; i++) {
 			if (get_ifname(ifr.ifr_name, ifnames[i]))
-				invarg("not a valid ifname", ifnames[i]);
+				return invarg("not a valid ifname", ifnames[i]);
 			if (ioctl(udp_sock, SIOCGIFINDEX, &ifr)) {
 				perror("ioctl(SIOCGIFINDEX)");
-				exit(-1);
+				iprt_exit(-1);
 			}
 			ifvec[i] = ifr.ifr_ifindex;
 		}
@@ -675,7 +675,7 @@ int main(int argc, char **argv)
 	dbase = dbopen(dbname, O_CREAT|O_RDWR, 0644, DB_HASH, NULL);
 	if (dbase == NULL) {
 		perror("db_open");
-		exit(-1);
+		iprt_exit(-1);
 	}
 
 	if (do_load) {
@@ -759,7 +759,7 @@ int main(int argc, char **argv)
 	pset[0].fd = socket(PF_PACKET, SOCK_DGRAM, 0);
 	if (pset[0].fd < 0) {
 		perror("socket");
-		exit(-1);
+		iprt_exit(-1);
 	}
 
 	if (1) {
@@ -829,9 +829,9 @@ int main(int argc, char **argv)
 	undo_sysctl_adjustments();
 out:
 	dbase->close(dbase);
-	exit(0);
+	iprt_exit(0);
 
 do_abort:
 	dbase->close(dbase);
-	exit(-1);
+	iprt_exit(-1);
 }

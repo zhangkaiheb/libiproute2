@@ -64,11 +64,11 @@ explain(void)
 }
 
 
-static void
+static int
 usage(void)
 {
 	explain();
-	exit(-1);
+	iprt_exit(-1);
 }
 
 static int
@@ -90,7 +90,7 @@ parse_gact(struct action_util *a, int *argc_p, char ***argv_p,
 	if (!matches(*argv, "gact"))
 		NEXT_ARG_FWD();
 	if (parse_action_control(&argc, &argv, &p.action, false))
-		usage();	/* does not return */
+		return usage();	/* does not return */
 
 #ifdef CONFIG_GACT_PROB
 	if (argc > 0) {
@@ -110,7 +110,7 @@ parse_gact(struct action_util *a, int *argc_p, char ***argv_p,
 
 			if (parse_action_control(&argc, &argv,
 						 &pp.paction, false) == -1)
-				usage();
+				return usage();
 			if (get_u16(&pp.pval, *argv, 10)) {
 				fprintf(stderr,
 					"Illegal probability val 0x%x\n",
@@ -126,7 +126,7 @@ parse_gact(struct action_util *a, int *argc_p, char ***argv_p,
 			argc--;
 			argv++;
 		} else if (matches(*argv, "help") == 0) {
-			usage();
+			return usage();
 		}
 	}
 #endif
@@ -141,7 +141,7 @@ parse_gact(struct action_util *a, int *argc_p, char ***argv_p,
 			argc--;
 			argv++;
 		} else if (matches(*argv, "help") == 0) {
-			usage();
+			return usage();
 		}
 	}
 

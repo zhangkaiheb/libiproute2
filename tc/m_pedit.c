@@ -51,10 +51,10 @@ static void explain(void)
 
 }
 
-static void usage(void)
+static int usage(void)
 {
 	explain();
-	exit(-1);
+	iprt_exit(-1);
 }
 
 static int pedit_parse_nopopt(int *argc_p, char ***argv_p,
@@ -642,7 +642,7 @@ int parse_pedit(struct action_util *a, int *argc_p, char ***argv_p, int tca_id,
 
 			continue;
 		} else if (matches(*argv, "help") == 0) {
-			usage();
+			return usage();
 		} else if (matches(*argv, "munge") == 0) {
 			if (!ok) {
 				fprintf(stderr, "Bad pedit construct (%s)\n",

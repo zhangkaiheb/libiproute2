@@ -142,7 +142,7 @@ check_inverse(const char option[], int *invert, int *my_optind, int argc)
 }
 
 /*XXX: TC_CONFIG_XT_H */
-void exit_error(enum exittype status, const char *msg, ...)
+void exit_error(enum iprt_exittype status, const char *msg, ...)
 {
 	va_list args;
 
@@ -152,7 +152,7 @@ void exit_error(enum exittype status, const char *msg, ...)
 	va_end(args);
 	fprintf(stderr, "\n");
 	/* On error paths, make sure that we don't leak memory */
-	exit(status);
+	iprt_exit(status);
 }
 
 /*XXX: TC_CONFIG_XT_H */

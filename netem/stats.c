@@ -67,7 +67,7 @@ main(int argc, char **argv)
 		fp = fopen(argv[1], "r");
 		if (!fp) {
 			perror(argv[1]);
-			exit(1);
+			iprt_exit(1);
 		}
 	} else {
 		fp = stdin;

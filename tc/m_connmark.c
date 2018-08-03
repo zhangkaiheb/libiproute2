@@ -34,11 +34,11 @@ explain(void)
 		"\t           goto chain <CHAIN_INDEX>\n");
 }
 
-static void
+static int
 usage(void)
 {
 	explain();
-	exit(-1);
+	iprt_exit(-1);
 }
 
 static int
@@ -57,7 +57,7 @@ parse_connmark(struct action_util *a, int *argc_p, char ***argv_p, int tca_id,
 			argc--;
 			argv++;
 		} else if (matches(*argv, "help") == 0) {
-			usage();
+			return usage();
 		} else {
 			break;
 		}

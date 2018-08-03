@@ -34,7 +34,7 @@ int gact_ld; /* f*ckin backward compatibility */
 #endif
 int tab_flush;
 
-static void act_usage(void)
+static int act_usage(void)
 {
 	/*XXX: In the near future add a action->print_help to improve
 	 * usability
@@ -58,7 +58,7 @@ static void act_usage(void)
 			"\t\tEach action has its own parameters (ACTPARAMS)\n"
 			"\n");
 
-	exit(-1);
+	iprt_exit(-1);
 }
 
 static int print_noaopt(struct action_util *au, FILE *f, struct rtattr *opt)
@@ -233,11 +233,11 @@ done0:
 					snprintf(cookie_err_m, 128,
 						 "%zd Max allowed size %d",
 						 slen, TC_COOKIE_MAX_SIZE*2);
-					invarg(cookie_err_m, *argv);
+					return invarg(cookie_err_m, *argv);
 				}
 
 				if (hex2mem(*argv, act_ck, slen / 2) < 0)
-					invarg("cookie must be a hex string\n",
+					return invarg("cookie must be a hex string\n",
 					       *argv);
 
 				act_ck_len = slen / 2;
@@ -540,7 +540,8 @@ static int tc_action_gd(int cmd, unsigned int flags,
 	}
 
 	if (cmd == RTM_GETACTION) {
-		new_json_obj(json);
+		if (new_json_obj(json))
+			return -1;
 		ret = print_action(NULL, ans, stdout);
 		if (ret < 0) {
 			fprintf(stderr, "Dump terminated\n");
@@ -661,7 +662,7 @@ static int tc_act_list_or_flush(int *argc_p, char ***argv_p, int event)
 	if (argc && (strcmp(*argv, "since") == 0)) {
 		NEXT_ARG();
 		if (get_u32(&msec_since, *argv, 0))
-			invarg("dump time \"since\" is invalid", *argv);
+			return invarg("dump time \"since\" is invalid", *argv);
 	}
 
 	addattr_l(&req.n, MAX_MSG, ++prio, NULL, 0);
@@ -689,7 +690,8 @@ static int tc_act_list_or_flush(int *argc_p, char ***argv_p, int event)
 			perror("Cannot send dump request");
 			return 1;
 		}
-		new_json_obj(json);
+		if (new_json_obj(json))
+			return -1;
 		ret = rtnl_dump_filter(&rth, print_action, stdout);
 		delete_json_obj();
 	}

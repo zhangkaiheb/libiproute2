@@ -69,16 +69,16 @@ static int tc_qdisc_modify(int cmd, unsigned int flags, int argc, char **argv)
 		if (strcmp(*argv, "dev") == 0) {
 			NEXT_ARG();
 			if (d[0])
-				duparg("dev", *argv);
+				return duparg("dev", *argv);
 			strncpy(d, *argv, sizeof(d)-1);
 		} else if (strcmp(*argv, "handle") == 0) {
 			__u32 handle;
 
 			if (req.t.tcm_handle)
-				duparg("handle", *argv);
+				return duparg("handle", *argv);
 			NEXT_ARG();
 			if (get_qdisc_handle(&handle, *argv))
-				invarg("invalid qdisc ID", *argv);
+				return invarg("invalid qdisc ID", *argv);
 			req.t.tcm_handle = handle;
 		} else if (strcmp(*argv, "root") == 0) {
 			if (req.t.tcm_parent) {
@@ -113,9 +113,9 @@ static int tc_qdisc_modify(int cmd, unsigned int flags, int argc, char **argv)
 
 			NEXT_ARG();
 			if (req.t.tcm_parent)
-				duparg("parent", *argv);
+				return duparg("parent", *argv);
 			if (get_tc_classid(&handle, *argv))
-				invarg("invalid parent ID", *argv);
+				return invarg("invalid parent ID", *argv);
 			req.t.tcm_parent = handle;
 		} else if (matches(*argv, "estimator") == 0) {
 			if (parse_estimator(&argc, &argv, &est))
@@ -127,11 +127,11 @@ static int tc_qdisc_modify(int cmd, unsigned int flags, int argc, char **argv)
 		} else if (matches(*argv, "ingress_block") == 0) {
 			NEXT_ARG();
 			if (get_u32(&ingress_block, *argv, 0) || !ingress_block)
-				invarg("invalid ingress block index value", *argv);
+				return invarg("invalid ingress block index value", *argv);
 		} else if (matches(*argv, "egress_block") == 0) {
 			NEXT_ARG();
 			if (get_u32(&egress_block, *argv, 0) || !egress_block)
-				invarg("invalid egress block index value", *argv);
+				return invarg("invalid egress block index value", *argv);
 		} else if (matches(*argv, "help") == 0) {
 			usage();
 		} else {
@@ -404,7 +404,8 @@ static int tc_qdisc_list(int argc, char **argv)
 		return 1;
 	}
 
-	new_json_obj(json);
+	if (new_json_obj(json))
+		return -1;
 	if (rtnl_dump_filter(&rth, print_qdisc, stdout) < 0) {
 		fprintf(stderr, "Dump terminated\n");
 		return 1;

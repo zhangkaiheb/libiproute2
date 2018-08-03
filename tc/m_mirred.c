@@ -37,11 +37,11 @@ explain(void)
 		"\tDEVICENAME is the devicename\n");
 }
 
-static void
+static int
 usage(void)
 {
 	explain();
-	exit(-1);
+	iprt_exit(-1);
 }
 
 static const char *mirred_n2a(int action)
@@ -171,7 +171,7 @@ parse_direction(struct action_util *a, int *argc_p, char ***argv_p,
 				   matches(*argv, "dev") == 0) {
 				NEXT_ARG();
 				if (strlen(d))
-					duparg("dev", *argv);
+					return duparg("dev", *argv);
 
 				strncpy(d, *argv, sizeof(d)-1);
 				argc--;
@@ -264,7 +264,7 @@ parse_mirred(struct action_util *a, int *argc_p, char ***argv_p,
 		}
 
 	} else if (matches(*argv, "help") == 0) {
-		usage();
+		return usage();
 	} else {
 		fprintf(stderr, "mirred option not supported %s\n", *argv);
 	}

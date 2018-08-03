@@ -36,6 +36,7 @@
 #include <string.h>
 #include <getopt.h>
 
+#include "iprt.h"
 #include <json_writer.h>
 #include "lnstat.h"
 
@@ -78,7 +79,7 @@ static int usage(char *name, int exit_code)
 	fprintf(stderr, "\t-w --width n,n,n,...\tWidth for each field\n");
 	fprintf(stderr, "\n");
 
-	exit(exit_code);
+	iprt_exit(exit_code);
 }
 
 struct field_param {
@@ -344,11 +345,11 @@ int main(int argc, char **argv)
 	case MODE_NORMAL:
 	case MODE_JSON:
 		if (!map_field_params(lnstat_files, &fp, interval))
-			exit(1);
+			iprt_exit(1);
 
 		header = build_hdr_string(lnstat_files, &fp, 80);
 		if (!header)
-			exit(1);
+			iprt_exit(1);
 
 		if (interval < 1)
 			interval = 1;

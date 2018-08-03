@@ -44,10 +44,10 @@ static void ife_explain(void)
 	fprintf(stderr, "decode is used for receiving IFE packets\n");
 }
 
-static void ife_usage(void)
+static int ife_usage(void)
 {
 	ife_explain();
-	exit(-1);
+	iprt_exit(-1);
 }
 
 static int parse_ife(struct action_util *a, int *argc_p, char ***argv_p,
@@ -94,32 +94,32 @@ static int parse_ife(struct action_util *a, int *argc_p, char ***argv_p,
 			} else if (matches(*argv, "tcindex") == 0) {
 				ife_tcindex = IFE_META_TCINDEX;
 			} else {
-				invarg("Illegal meta define", *argv);
+				return invarg("Illegal meta define", *argv);
 			}
 		} else if (matches(*argv, "use") == 0) {
 			NEXT_ARG();
 			if (matches(*argv, "mark") == 0) {
 				NEXT_ARG();
 				if (get_u32(&ife_mark_v, *argv, 0))
-					invarg("ife mark val is invalid",
+					return invarg("ife mark val is invalid",
 					       *argv);
 			} else if (matches(*argv, "prio") == 0) {
 				NEXT_ARG();
 				if (get_u32(&ife_prio_v, *argv, 0))
-					invarg("ife prio val is invalid",
+					return invarg("ife prio val is invalid",
 					       *argv);
 			} else if (matches(*argv, "tcindex") == 0) {
 				NEXT_ARG();
 				if (get_u16(&ife_tcindex_v, *argv, 0))
-					invarg("ife tcindex val is invalid",
+					return invarg("ife tcindex val is invalid",
 					       *argv);
 			} else {
-				invarg("Illegal meta use type", *argv);
+				return invarg("Illegal meta use type", *argv);
 			}
 		} else if (matches(*argv, "type") == 0) {
 			NEXT_ARG();
 			if (get_u16(&ife_type, *argv, 0))
-				invarg("ife type is invalid", *argv);
+				return invarg("ife type is invalid", *argv);
 			fprintf(stderr, "IFE type 0x%04X\n", ife_type);
 			user_type = 1;
 		} else if (matches(*argv, "dst") == 0) {
@@ -128,7 +128,7 @@ static int parse_ife(struct action_util *a, int *argc_p, char ***argv_p,
 			if (sscanf(daddr, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
 				   dbuf, dbuf + 1, dbuf + 2,
 				   dbuf + 3, dbuf + 4, dbuf + 5) != 6) {
-				invarg("Invalid mac address", *argv);
+				return invarg("Invalid mac address", *argv);
 			}
 			fprintf(stderr, "dst MAC address <%s>\n", daddr);
 
@@ -138,11 +138,11 @@ static int parse_ife(struct action_util *a, int *argc_p, char ***argv_p,
 			if (sscanf(saddr, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
 				   sbuf, sbuf + 1, sbuf + 2,
 				   sbuf + 3, sbuf + 4, sbuf + 5) != 6) {
-				invarg("Invalid mac address", *argv);
+				return invarg("Invalid mac address", *argv);
 			}
 			fprintf(stderr, "src MAC address <%s>\n", saddr);
 		} else if (matches(*argv, "help") == 0) {
-			ife_usage();
+			return ife_usage();
 		} else {
 			break;
 		}
@@ -168,7 +168,7 @@ static int parse_ife(struct action_util *a, int *argc_p, char ***argv_p,
 
 	if (!ok) {
 		fprintf(stderr, "IFE requires decode/encode specified\n");
-		ife_usage();
+		return ife_usage();
 	}
 
 	tail = addattr_nest(n, MAX_MSG, tca_id);

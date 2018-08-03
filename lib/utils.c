@@ -34,6 +34,7 @@
 #include <sys/capability.h>
 #endif
 
+#include "iprt.h"
 #include "rt_names.h"
 #include "utils.h"
 #include "ll_map.h"
@@ -746,7 +747,7 @@ int get_addr(inet_prefix *dst, const char *arg, int family)
 		fprintf(stderr,
 			"Error: %s address is expected rather than \"%s\".\n",
 			family_name_verbose(family), arg);
-		exit(1);
+		iprt_exit(1);
 	}
 	return 0;
 }
@@ -797,14 +798,14 @@ int get_prefix(inet_prefix *dst, char *arg, int family)
 		fprintf(stderr,
 			"Error: \"%s\" may be inet prefix, but it is not allowed in this context.\n",
 			arg);
-		exit(1);
+		iprt_exit(1);
 	}
 
 	if (get_prefix_1(dst, arg, family)) {
 		fprintf(stderr,
 			"Error: %s prefix is expected rather than \"%s\".\n",
 			family_name_verbose(family), arg);
-		exit(1);
+		iprt_exit(1);
 	}
 	return 0;
 }
@@ -817,43 +818,43 @@ __u32 get_addr32(const char *name)
 		fprintf(stderr,
 			"Error: an IP address is expected rather than \"%s\"\n",
 			name);
-		exit(1);
+		iprt_exit(1);
 	}
 	return addr.data[0];
 }
 
-void incomplete_command(void)
+int incomplete_command(void)
 {
 	fprintf(stderr, "Command line is not complete. Try option \"help\"\n");
-	exit(-1);
+	iprt_exit(-1);
 }
 
-void missarg(const char *key)
+int missarg(const char *key)
 {
 	fprintf(stderr, "Error: argument \"%s\" is required\n", key);
-	exit(-1);
+	iprt_exit(-1);
 }
 
-void invarg(const char *msg, const char *arg)
+int invarg(const char *msg, const char *arg)
 {
 	fprintf(stderr, "Error: argument \"%s\" is wrong: %s\n", arg, msg);
-	exit(-1);
+	iprt_exit(-1);
 }
 
-void duparg(const char *key, const char *arg)
+int duparg(const char *key, const char *arg)
 {
 	fprintf(stderr,
 		"Error: duplicate \"%s\": \"%s\" is the second value.\n",
 		key, arg);
-	exit(-1);
+	iprt_exit(-1);
 }
 
-void duparg2(const char *key, const char *arg)
+int duparg2(const char *key, const char *arg)
 {
 	fprintf(stderr,
 		"Error: either \"%s\" is duplicate, or \"%s\" is a garbage.\n",
 		key, arg);
-	exit(-1);
+	iprt_exit(-1);
 }
 
 int nodev(const char *dev)
@@ -1411,7 +1412,7 @@ int makeargs(char *line, char *argv[], int maxargs)
 
 		if (argc >= (maxargs - 1)) {
 			fprintf(stderr, "Too many arguments to command\n");
-			exit(1);
+			iprt_exit(1);
 		}
 
 		/* word begins with quote */
@@ -1423,7 +1424,7 @@ int makeargs(char *line, char *argv[], int maxargs)
 			cp = strchr(cp, quote);
 			if (cp == NULL) {
 				fprintf(stderr, "Unterminated quoted string\n");
-				exit(1);
+				iprt_exit(1);
 			}
 		} else {
 			argv[argc++] = cp;
@@ -1618,16 +1619,16 @@ void drop_cap(void)
 
 		capabilities = cap_get_proc();
 		if (!capabilities)
-			exit(EXIT_FAILURE);
+			iprt_exit(EXIT_FAILURE);
 		if (cap_get_flag(capabilities, net_admin, inheritable,
 		    &is_set) != 0)
-			exit(EXIT_FAILURE);
+			iprt_exit(EXIT_FAILURE);
 		/* apps with ambient caps can fork and call ip */
 		if (is_set == CAP_CLEAR) {
 			if (cap_clear(capabilities) != 0)
-				exit(EXIT_FAILURE);
+				iprt_exit(EXIT_FAILURE);
 			if (cap_set_proc(capabilities) != 0)
-				exit(EXIT_FAILURE);
+				iprt_exit(EXIT_FAILURE);
 		}
 		cap_free(capabilities);
 	}

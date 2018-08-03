@@ -191,14 +191,14 @@ static int get_nlmsg(const struct sockaddr_nl *who,
 	return 0;
 }
 
-static void load_info(void)
+static int load_info(void)
 {
 	struct ifstat_ent *db, *n;
 	struct rtnl_handle rth;
 	__u32 filter_mask;
 
 	if (rtnl_open(&rth, 0) < 0)
-		exit(1);
+		iprt_exit(1);
 
 	if (is_extended) {
 		ll_init_map(&rth);
@@ -206,22 +206,22 @@ static void load_info(void)
 		if (rtnl_wilddump_stats_req_filter(&rth, AF_UNSPEC, RTM_GETSTATS,
 						   filter_mask) < 0) {
 			perror("Cannot send dump request");
-			exit(1);
+			iprt_exit(1);
 		}
 
 		if (rtnl_dump_filter(&rth, get_nlmsg_extended, NULL) < 0) {
 			fprintf(stderr, "Dump terminated\n");
-			exit(1);
+			iprt_exit(1);
 		}
 	} else {
 		if (rtnl_wilddump_request(&rth, AF_INET, RTM_GETLINK) < 0) {
 			perror("Cannot send dump request");
-			exit(1);
+			iprt_exit(1);
 		}
 
 		if (rtnl_dump_filter(&rth, get_nlmsg, NULL) < 0) {
 			fprintf(stderr, "Dump terminated\n");
-			exit(1);
+			iprt_exit(1);
 		}
 	}
 
@@ -236,6 +236,7 @@ static void load_info(void)
 		n->next = kern_db;
 		kern_db = n;
 	}
+	return 0;
 }
 
 static void load_raw_table(FILE *fp)
@@ -594,14 +595,15 @@ static void sigchild(int signo)
 {
 }
 
-static void update_db(int interval)
+static int update_db(int interval)
 {
 	struct ifstat_ent *n, *h;
 
 	n = kern_db;
 	kern_db = NULL;
 
-	load_info();
+	if (load_info())
+		return -1;
 
 	h = kern_db;
 	kern_db = n;
@@ -660,12 +662,13 @@ static void update_db(int interval)
 			}
 		}
 	}
+	return 0;
 }
 
 #define T_DIFF(a, b) (((a).tv_sec-(b).tv_sec)*1000 + ((a).tv_usec-(b).tv_usec)/1000)
 
 
-static void server_loop(int fd)
+static int server_loop(int fd)
 {
 	struct timeval snaptime = { 0 };
 	struct pollfd p;
@@ -676,7 +679,8 @@ static void server_loop(int fd)
 	sprintf(info_source, "%d.%lu sampling_interval=%d time_const=%d",
 		getpid(), (unsigned long)random(), scan_interval/1000, time_constant/1000);
 
-	load_info();
+	if (load_info())
+		return -1;
 
 	for (;;) {
 		int status;
@@ -686,7 +690,8 @@ static void server_loop(int fd)
 		gettimeofday(&now, NULL);
 		tdiff = T_DIFF(now, snaptime);
 		if (tdiff >= scan_interval) {
-			update_db(tdiff);
+			if (update_db(tdiff))
+				return -1;
 			snaptime = now;
 			tdiff = 0;
 		}
@@ -709,7 +714,7 @@ static void server_loop(int fd)
 
 					if (fp)
 						dump_raw_db(fp, 0);
-					exit(0);
+					iprt_exit(0);
 				}
 			}
 		}
@@ -774,9 +779,7 @@ static const char *get_filter_type(const char *name)
 	return NULL;
 }
 
-static void usage(void) __attribute__((noreturn));
-
-static void usage(void)
+static int usage(void)
 {
 	fprintf(stderr,
 "Usage: ifstat [OPTION] [ PATTERN [ PATTERN ] ]\n"
@@ -794,7 +797,7 @@ static void usage(void)
 "   -z, --zeros          show entries with zero activity\n"
 "   -x, --extended=TYPE  show extended stats of TYPE\n");
 
-	exit(-1);
+	iprt_exit(-1);
 }
 
 static const struct option longopts[] = {
@@ -855,14 +858,14 @@ int main(int argc, char *argv[])
 			scan_interval = atoi(optarg) * 1000;
 			if (scan_interval <= 0) {
 				fprintf(stderr, "ifstat: invalid scan interval\n");
-				exit(-1);
+				iprt_exit(-1);
 			}
 			break;
 		case 't':
 			time_constant = atoi(optarg);
 			if (time_constant <= 0) {
 				fprintf(stderr, "ifstat: invalid time constant divisor\n");
-				exit(-1);
+				iprt_exit(-1);
 			}
 			break;
 		case 'x':
@@ -872,11 +875,11 @@ int main(int argc, char *argv[])
 		case 'v':
 		case 'V':
 			printf("ifstat utility, iproute2-ss%s\n", SNAPSHOT);
-			exit(0);
+			iprt_exit(0);
 		case 'h':
 		case '?':
 		default:
-			usage();
+			return usage();
 		}
 	}
 
@@ -886,7 +889,7 @@ int main(int argc, char *argv[])
 	if (stats_type) {
 		stats_type = get_filter_type(stats_type);
 		if (!stats_type)
-			exit(-1);
+			iprt_exit(-1);
 	}
 
 	sun.sun_family = AF_UNIX;
@@ -900,24 +903,24 @@ int main(int argc, char *argv[])
 		W = 1 - 1/exp(log(10)*(double)scan_interval/time_constant);
 		if ((fd = socket(AF_UNIX, SOCK_STREAM, 0)) < 0) {
 			perror("ifstat: socket");
-			exit(-1);
+			iprt_exit(-1);
 		}
 		if (bind(fd, (struct sockaddr *)&sun, 2+1+strlen(sun.sun_path+1)) < 0) {
 			perror("ifstat: bind");
-			exit(-1);
+			iprt_exit(-1);
 		}
 		if (listen(fd, 5) < 0) {
 			perror("ifstat: listen");
-			exit(-1);
+			iprt_exit(-1);
 		}
 		if (daemon(0, 0)) {
 			perror("ifstat: daemon");
-			exit(-1);
+			iprt_exit(-1);
 		}
 		signal(SIGPIPE, SIG_IGN);
 		signal(SIGCHLD, sigchild);
 		server_loop(fd);
-		exit(0);
+		iprt_exit(0);
 	}
 
 	patterns = argv;
@@ -944,23 +947,23 @@ int main(int argc, char *argv[])
 		fd = open(hist_name, O_RDWR|O_CREAT|O_NOFOLLOW, 0600);
 		if (fd < 0) {
 			perror("ifstat: open history file");
-			exit(-1);
+			iprt_exit(-1);
 		}
 		if ((hist_fp = fdopen(fd, "r+")) == NULL) {
 			perror("ifstat: fdopen history file");
-			exit(-1);
+			iprt_exit(-1);
 		}
 		if (flock(fileno(hist_fp), LOCK_EX)) {
 			perror("ifstat: flock history file");
-			exit(-1);
+			iprt_exit(-1);
 		}
 		if (fstat(fileno(hist_fp), &stb) != 0) {
 			perror("ifstat: fstat history file");
-			exit(-1);
+			iprt_exit(-1);
 		}
 		if (stb.st_nlink != 1 || stb.st_uid != getuid()) {
 			fprintf(stderr, "ifstat: something is so wrong with history file, that I prefer not to proceed.\n");
-			exit(-1);
+			iprt_exit(-1);
 		}
 		if (!ignore_history) {
 			FILE *tfp;
@@ -1011,7 +1014,8 @@ int main(int argc, char *argv[])
 			hist_db = NULL;
 			info_source[0] = 0;
 		}
-		load_info();
+		if (load_info())
+			return -1;
 		if (info_source[0] == 0)
 			strcpy(info_source, "kernel");
 	}
@@ -1032,5 +1036,5 @@ int main(int argc, char *argv[])
 		dump_raw_db(hist_fp, 1);
 		fclose(hist_fp);
 	}
-	exit(0);
+	iprt_exit(0);
 }

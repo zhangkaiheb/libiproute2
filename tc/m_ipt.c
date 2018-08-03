@@ -68,7 +68,7 @@ static void exit_tryhelp(int status)
 {
 	fprintf(stderr, "Try `%s -h' or '%s --help' for more information.\n",
 		pname, pname);
-	exit(status);
+	iprt_exit(status);
 }
 
 static void exit_error(enum xtables_exittype status, char *msg, ...)
@@ -85,7 +85,7 @@ static void exit_error(enum xtables_exittype status, char *msg, ...)
 	if (status == VERSION_PROBLEM)
 		fprintf(stderr,
 			"Perhaps iptables or your kernel needs to be upgraded.\n");
-	exit(status);
+	iprt_exit(status);
 }
 
 /* stolen from iptables 1.2.11
@@ -132,7 +132,7 @@ fw_calloc(size_t count, size_t size)
 
 	if ((p = (void *) calloc(count, size)) == NULL) {
 		perror("iptables: calloc failed");
-		exit(1);
+		iprt_exit(1);
 	}
 	return p;
 }

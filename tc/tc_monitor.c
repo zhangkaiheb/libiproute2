@@ -25,12 +25,10 @@
 #include "tc_common.h"
 
 
-static void usage(void) __attribute__((noreturn));
-
-static void usage(void)
+static int usage(void)
 {
 	fprintf(stderr, "Usage: tc [-timestamp [-tshort] monitor\n");
-	exit(-1);
+	iprt_exit(-1);
 }
 
 
@@ -80,10 +78,10 @@ int do_tcmonitor(int argc, char **argv)
 			file = *argv;
 		} else {
 			if (matches(*argv, "help") == 0) {
-				usage();
+				return usage();
 			} else {
 				fprintf(stderr, "Argument \"%s\" is unknown, try \"tc monitor help\".\n", *argv);
-				exit(-1);
+				iprt_exit(-1);
 			}
 		}
 		argc--;	argv++;
@@ -95,7 +93,7 @@ int do_tcmonitor(int argc, char **argv)
 
 		if (fp == NULL) {
 			perror("Cannot fopen");
-			exit(-1);
+			iprt_exit(-1);
 		}
 
 		ret = rtnl_from_file(fp, accept_tcmsg, stdout);
@@ -104,15 +102,15 @@ int do_tcmonitor(int argc, char **argv)
 	}
 
 	if (rtnl_open(&rth, groups) < 0)
-		exit(1);
+		iprt_exit(1);
 
 	ll_init_map(&rth);
 
 	if (rtnl_listen(&rth, accept_tcmsg, (void *)stdout) < 0) {
 		rtnl_close(&rth);
-		exit(2);
+		iprt_exit(2);
 	}
 
 	rtnl_close(&rth);
-	exit(0);
+	iprt_exit(0);
 }

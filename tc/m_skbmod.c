@@ -40,10 +40,10 @@ static void skbmod_explain(void)
 		"\tINDEX := skbmod index value to use\n");
 }
 
-static void skbmod_usage(void)
+static int skbmod_usage(void)
 {
 	skbmod_explain();
-	exit(-1);
+	iprt_exit(-1);
 }
 
 static int parse_skbmod(struct action_util *a, int *argc_p, char ***argv_p,
@@ -81,7 +81,7 @@ static int parse_skbmod(struct action_util *a, int *argc_p, char ***argv_p,
 		} else if (matches(*argv, "etype") == 0) {
 			NEXT_ARG();
 			if (get_u16(&skbmod_etype, *argv, 0))
-				invarg("ethertype is invalid", *argv);
+				return invarg("ethertype is invalid", *argv);
 			fprintf(stderr, "skbmod etype 0x%x\n", skbmod_etype);
 			p.flags |= SKBMOD_F_ETYPE;
 			ok += 1;
@@ -113,7 +113,7 @@ static int parse_skbmod(struct action_util *a, int *argc_p, char ***argv_p,
 			fprintf(stderr, "src MAC address <%s>\n", saddr);
 			ok += 1;
 		} else if (matches(*argv, "help") == 0) {
-			skbmod_usage();
+			return skbmod_usage();
 		} else {
 			break;
 		}
@@ -139,7 +139,7 @@ static int parse_skbmod(struct action_util *a, int *argc_p, char ***argv_p,
 
 	if (!ok) {
 		fprintf(stderr, "skbmod requires at least one option\n");
-		skbmod_usage();
+		return skbmod_usage();
 	}
 
 	tail = addattr_nest(n, MAX_MSG, tca_id);

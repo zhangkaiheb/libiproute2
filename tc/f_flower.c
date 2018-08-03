@@ -141,7 +141,7 @@ static int flower_parse_vlan_eth_type(char *str, __be16 eth_type, int type,
 	}
 
 	if (ll_proto_a2n(&vlan_eth_type, str))
-		invarg("invalid vlan_ethtype", str);
+		return invarg("invalid vlan_ethtype", str);
 	addattr16(n, MAX_MSG, type, vlan_eth_type);
 	*p_vlan_eth_type = vlan_eth_type;
 	return 0;
@@ -655,7 +655,7 @@ static int flower_parse_opt(struct filter_util *qu, char *handle,
 		} else if (matches(*argv, "indev") == 0) {
 			NEXT_ARG();
 			if (check_ifname(*argv))
-				invarg("\"indev\" not a valid ifname", *argv);
+				return invarg("\"indev\" not a valid ifname", *argv);
 			addattrstrz(n, MAX_MSG, TCA_FLOWER_INDEV, *argv);
 		} else if (matches(*argv, "vlan_id") == 0) {
 			__u16 vid;

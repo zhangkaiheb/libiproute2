@@ -1961,29 +1961,35 @@ static int get_dns_host(struct aafilter *a, const char *addr, int fam)
 
 static int xll_initted;
 
-static void xll_init(void)
+static int xll_init(void)
 {
 	struct rtnl_handle rth;
 
 	if (rtnl_open(&rth, 0) < 0)
-		exit(1);
+		iprt_exit(1);
 
 	ll_init_map(&rth);
 	rtnl_close(&rth);
 	xll_initted = 1;
+
+	return 0;
 }
 
 static const char *xll_index_to_name(int index)
 {
-	if (!xll_initted)
-		xll_init();
+	if (!xll_initted) {
+		if (xll_init())
+			return NULL;
+	}
 	return ll_index_to_name(index);
 }
 
 static int xll_name_to_index(const char *dev)
 {
-	if (!xll_initted)
-		xll_init();
+	if (!xll_initted) {
+		if (xll_init())
+			return -1;
+	}
 	return ll_name_to_index(dev);
 }
 
@@ -3271,7 +3277,7 @@ static int tcp_show_netlink_file(struct filter *f)
 			break;
 		}
 
-		/* The only legal exit point */
+		/* The only legal iprt_exit point */
 		if (h->nlmsg_type == NLMSG_DONE) {
 			err = 0;
 			break;
@@ -4663,18 +4669,16 @@ static void _usage(FILE *dest)
 		);
 }
 
-static void help(void) __attribute__((noreturn));
-static void help(void)
+static int help(void)
 {
 	_usage(stdout);
-	exit(0);
+	iprt_exit(0);
 }
 
-static void usage(void) __attribute__((noreturn));
-static void usage(void)
+static int usage(void)
 {
 	_usage(stderr);
-	exit(-1);
+	iprt_exit(-1);
 }
 
 
@@ -4719,7 +4723,7 @@ static int scan_state(const char *state)
 	}
 
 	fprintf(stderr, "ss: wrong state name: %s\n", state);
-	exit(-1);
+	iprt_exit(-1);
 }
 
 /* Values 'v' and 'V' are already used so a non-character is used */
@@ -4869,11 +4873,11 @@ int main(int argc, char *argv[])
 			else if (strcmp(optarg, "vsock") == 0)
 				filter_af_set(&current_filter, AF_VSOCK);
 			else if (strcmp(optarg, "help") == 0)
-				help();
+				return help();
 			else {
 				fprintf(stderr, "ss: \"%s\" is invalid family\n",
 						optarg);
-				usage();
+				return usage();
 			}
 			break;
 		case 'A':
@@ -4893,7 +4897,7 @@ int main(int argc, char *argv[])
 					*p1 = 0;
 				if (filter_db_parse(&current_filter, p)) {
 					fprintf(stderr, "ss: \"%s\" is illegal socket table id\n", p);
-					usage();
+					return usage();
 				}
 				p = p1 + 1;
 			} while (p1);
@@ -4908,7 +4912,7 @@ int main(int argc, char *argv[])
 		case 'F':
 			if (filter_fp) {
 				fprintf(stderr, "More than one filter file\n");
-				exit(-1);
+				iprt_exit(-1);
 			}
 			if (optarg[0] == '-')
 				filter_fp = stdin;
@@ -4916,27 +4920,27 @@ int main(int argc, char *argv[])
 				filter_fp = fopen(optarg, "r");
 			if (!filter_fp) {
 				perror("fopen filter file");
-				exit(-1);
+				iprt_exit(-1);
 			}
 			break;
 		case 'v':
 		case 'V':
 			printf("ss utility, iproute2-ss%s\n", SNAPSHOT);
-			exit(0);
+			iprt_exit(0);
 		case 'z':
 			show_sock_ctx++;
 			/* fall through */
 		case 'Z':
 			if (is_selinux_enabled() <= 0) {
 				fprintf(stderr, "ss: SELinux is not enabled.\n");
-				exit(1);
+				iprt_exit(1);
 			}
 			show_proc_ctx++;
 			user_ent_hash_build();
 			break;
 		case 'N':
 			if (netns_switch(optarg))
-				exit(1);
+				iprt_exit(1);
 			break;
 		case OPT_TIPCINFO:
 			show_tipcinfo = 1;
@@ -4948,10 +4952,10 @@ int main(int argc, char *argv[])
 			show_header = 0;
 			break;
 		case 'h':
-			help();
+			return help();
 		case '?':
 		default:
-			usage();
+			return usage();
 		}
 	}
 
@@ -4961,7 +4965,7 @@ int main(int argc, char *argv[])
 	if (do_summary) {
 		print_summary();
 		if (do_default && argc == 0)
-			exit(0);
+			iprt_exit(0);
 	}
 
 	while (argc > 0) {
@@ -4998,15 +5002,15 @@ int main(int argc, char *argv[])
 
 	if (current_filter.dbs == 0) {
 		fprintf(stderr, "ss: no socket tables to show with such filter.\n");
-		exit(0);
+		iprt_exit(0);
 	}
 	if (current_filter.families == 0) {
 		fprintf(stderr, "ss: no families to show with such filter.\n");
-		exit(0);
+		iprt_exit(0);
 	}
 	if (current_filter.states == 0) {
 		fprintf(stderr, "ss: no socket states to show with such filter.\n");
-		exit(0);
+		iprt_exit(0);
 	}
 
 	if (dump_tcpdiag) {
@@ -5014,22 +5018,22 @@ int main(int argc, char *argv[])
 
 		if (!(current_filter.dbs & (1<<TCP_DB))) {
 			fprintf(stderr, "ss: tcpdiag dump requested and no tcp in filter.\n");
-			exit(0);
+			iprt_exit(0);
 		}
 		if (dump_tcpdiag[0] != '-') {
 			dump_fp = fopen(dump_tcpdiag, "w");
 			if (!dump_tcpdiag) {
 				perror("fopen dump file");
-				exit(-1);
+				iprt_exit(-1);
 			}
 		}
 		inet_show_netlink(&current_filter, dump_fp, IPPROTO_TCP);
 		fflush(dump_fp);
-		exit(0);
+		iprt_exit(0);
 	}
 
 	if (ssfilter_parse(&current_filter.f, argc, argv, filter_fp))
-		usage();
+		return usage();
 
 	if (!(current_filter.dbs & (current_filter.dbs - 1)))
 		columns[COL_NETID].disabled = 1;
@@ -5043,7 +5047,7 @@ int main(int argc, char *argv[])
 	fflush(stdout);
 
 	if (follow_events)
-		exit(handle_follow_request(&current_filter));
+		iprt_exit(handle_follow_request(&current_filter));
 
 	if (current_filter.dbs & (1<<NETLINK_DB))
 		netlink_show(&current_filter);

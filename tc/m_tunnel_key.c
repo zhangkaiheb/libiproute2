@@ -32,10 +32,10 @@ static void explain(void)
 		"csum | nocsum (default is \"csum\")\n");
 }
 
-static void usage(void)
+static int usage(void)
 {
 	explain();
-	exit(-1);
+	iprt_exit(-1);
 }
 
 static int tunnel_key_parse_ip_addr(const char *str, int addr4_type,
@@ -162,7 +162,7 @@ static int parse_tunnel_key(struct action_util *a, int *argc_p, char ***argv_p,
 		} else if (matches(*argv, "nocsum") == 0) {
 			csum = 0;
 		} else if (matches(*argv, "help") == 0) {
-			usage();
+			return usage();
 		} else {
 			break;
 		}

@@ -37,10 +37,10 @@ static void explain(void)
 		"                  goto chain <CHAIN_INDEX>\n");
 }
 
-static void usage(void)
+static int usage(void)
 {
 	explain();
-	exit(-1);
+	iprt_exit(-1);
 }
 
 static bool has_push_attribs(int action)
@@ -97,30 +97,30 @@ static int parse_vlan(struct action_util *a, int *argc_p, char ***argv_p,
 			action = TCA_VLAN_ACT_MODIFY;
 		} else if (matches(*argv, "id") == 0) {
 			if (!has_push_attribs(action))
-				invarg("only valid for push/modify", *argv);
+				return invarg("only valid for push/modify", *argv);
 
 			NEXT_ARG();
 			if (get_u16(&id, *argv, 0))
-				invarg("id is invalid", *argv);
+				return invarg("id is invalid", *argv);
 			id_set = 1;
 		} else if (matches(*argv, "protocol") == 0) {
 			if (!has_push_attribs(action))
-				invarg("only valid for push/modify", *argv);
+				return invarg("only valid for push/modify", *argv);
 
 			NEXT_ARG();
 			if (ll_proto_a2n(&proto, *argv))
-				invarg("protocol is invalid", *argv);
+				return invarg("protocol is invalid", *argv);
 			proto_set = 1;
 		} else if (matches(*argv, "priority") == 0) {
 			if (!has_push_attribs(action))
-				invarg("only valid for push/modify", *argv);
+				return invarg("only valid for push/modify", *argv);
 
 			NEXT_ARG();
 			if (get_u8(&prio, *argv, 0) || (prio & ~0x7))
-				invarg("prio is invalid", *argv);
+				return invarg("prio is invalid", *argv);
 			prio_set = 1;
 		} else if (matches(*argv, "help") == 0) {
-			usage();
+			return usage();
 		} else {
 			break;
 		}

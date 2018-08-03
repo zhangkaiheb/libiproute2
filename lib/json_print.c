@@ -12,6 +12,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 
+#include "iprt.h"
 #include "utils.h"
 #include "json_print.h"
 
@@ -20,18 +21,19 @@ static json_writer_t *_jw;
 #define _IS_JSON_CONTEXT(type) ((type & PRINT_JSON || type & PRINT_ANY) && _jw)
 #define _IS_FP_CONTEXT(type) (!_jw && (type & PRINT_FP || type & PRINT_ANY))
 
-void new_json_obj(int json)
+int new_json_obj(int json)
 {
 	if (json) {
 		_jw = jsonw_new(stdout);
 		if (!_jw) {
 			perror("json object");
-			exit(1);
+			iprt_exit(1);
 		}
 		if (pretty)
 			jsonw_pretty(_jw, true);
 		jsonw_start_array(_jw);
 	}
+	return 0;
 }
 
 void delete_json_obj(void)

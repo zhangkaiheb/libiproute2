@@ -13,6 +13,7 @@
 #define SSF_MARKMASK 11
 
 #include <stdbool.h>
+#include "iprt.h"
 
 struct ssfilter
 {

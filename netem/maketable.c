@@ -15,6 +15,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
+#include "iprt.h"
 
 double *
 readdoubles(FILE *fp, int *number)
@@ -34,7 +35,7 @@ readdoubles(FILE *fp, int *number)
 	x = calloc(limit, sizeof(double));
 	if (!x) {
 		perror("double alloc");
-		exit(3);
+		iprt_exit(NULL);
 	}
 
 	for (i=0; i<limit; ++i){
@@ -99,7 +100,7 @@ makedist(double *x, int limit, double mu, double sigma)
 	table = calloc(DISTTABLESIZE, sizeof(int));
 	if (!table) {
 		perror("table alloc");
-		exit(3);
+		iprt_exit(NULL);
 	}
 
 	for (i=0; i < limit; ++i) {
@@ -208,7 +209,7 @@ main(int argc, char **argv)
 	if (argc > 1) {
 		if (!(fp = fopen(argv[1], "r"))) {
 			perror(argv[1]);
-			exit(1);
+			iprt_exit(1);
 		}
 	} else {
 		fp = stdin;
@@ -216,7 +217,7 @@ main(int argc, char **argv)
 	x = readdoubles(fp, &limit);
 	if (limit <= 0) {
 		fprintf(stderr, "Nothing much read!\n");
-		exit(2);
+		iprt_exit(2);
 	}
 	arraystats(x, limit, &mu, &sigma, &rho);
 #ifdef DEBUG

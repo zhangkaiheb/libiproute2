@@ -31,7 +31,7 @@ struct action_util police_action_util = {
 	.print_aopt = print_police,
 };
 
-static void usage(void)
+static int usage(void)
 {
 	fprintf(stderr, "Usage: ... police rate BPS burst BYTES[/BYTES] [ mtu BYTES[/BYTES] ]\n");
 	fprintf(stderr, "                [ peakrate BPS ] [ avrate BPS ] [ overhead BYTES ]\n");
@@ -42,7 +42,7 @@ static void usage(void)
 	fprintf(stderr, "                  or conform (<NOTEXCEEDACT>) the configured bandwidth limit.\n");
 	fprintf(stderr, "       EXCEEDACT/NOTEXCEEDACT := { pipe | ok | reclassify | drop | continue |\n");
 	fprintf(stderr, "                                   goto chain <CHAIN_INDEX> }\n");
-	exit(-1);
+	iprt_exit(-1);
 }
 
 static void explain1(char *arg)
@@ -173,7 +173,7 @@ int act_parse_police(struct action_util *a, int *argc_p, char ***argv_p,
 				explain1("linklayer"); return -1;
 			}
 		} else if (strcmp(*argv, "help") == 0) {
-			usage();
+			return usage();
 		} else {
 			break;
 		}
